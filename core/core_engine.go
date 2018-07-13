@@ -1,0 +1,104 @@
+package core
+
+import (
+	"log"
+	"strconv"
+	"goSkylar/lib"
+	"goSkylar/core/masscan"
+	"goSkylar/core/nmap"
+	"github.com/toolkits/net"
+)
+
+func CoreScanEngine(ip_range string, rate string, taskTime string) error {
+	//lib.LogSetting()
+	selfIpList, err := net.IntranetIP()
+	selfIp := ""
+	if err != nil {
+		log.Println("-------Machine IP获取失败--------")
+	} else {
+		selfIp = selfIpList[0]
+	}
+	masscanResultStruct, err := RunMasscan(ip_range, rate)
+	for _, v := range masscanResultStruct {
+		engineResult, _ := RunNmap(v.IP, strconv.Itoa(v.Port))
+		for _, v := range engineResult {
+			if v.Protocol != "" {
+				log.Println("--------------")
+				log.Println(v)
+				lib.PushPortInfoToRedis(ScannerResultTransfer(v), taskTime, selfIp)
+			}
+		}
+	}
+
+	//for _, v := range masscanResultStruct {
+	//	lib.PushPortInfoToRedis(v.IP + "§§§§" + strconv.Itoa(v.Port) + "§§§§" + "testProtocol" + "§§§§" + "testService")
+	//}
+	return err
+
+}
+
+func RunMasscan(ip_range string, rate string) ([]masscan.MasscanResultStruct, error) {
+	m := masscan.New()
+	//
+	//// masscan可执行文件路径,默认不需要设置
+	//m.SetSystemPath("/usr/local/masscan/bin/masscan")
+
+	// 扫描端口范围
+	m.SetPorts("1-65535")
+
+	//m.SetInclude("1.txt")
+
+	// 扫描IP范围
+	m.SetRanges(ip_range)
+
+	// 扫描速率
+	m.SetRate(rate)
+
+	//m.SetFileName()
+
+	// 隔离扫描名单
+	m.SetExclude("exclude.txt")
+
+	// 开始扫描
+	err := m.Run()
+	if err != nil {
+		log.Println("masscan scanner failed:", err)
+		return nil, err
+	}
+
+	// 解析扫描结果
+	results, err := m.Parse()
+	if err != nil {
+		log.Println("Parse scanner result:", err)
+		return nil, err
+	}
+
+	var masscanResultStruct []masscan.MasscanResultStruct
+
+	for _, result := range results {
+		for _, v := range result.Ports {
+			var masscanResult masscan.MasscanResultStruct
+			masscanResult.IP = result.Address.Addr
+			port, _ := strconv.Atoi(v.Portid)
+			masscanResult.Port = port
+			masscanResultStruct = append(masscanResultStruct, masscanResult)
+		}
+	}
+	return masscanResultStruct, err
+}
+
+func RunNmap(ip string, port string) ([]nmap.NmapResultStruct, error) {
+	m := nmap.New()
+	m.SetIP(ip)
+	m.SetHostTimeOut("1800000ms")
+	m.SetMaxRttTimeOut("10000ms")
+	m.SetPorts(port)
+	err := m.Run()
+	if err != nil {
+		log.Println("nmap scanner failed:", err)
+		return nil, err
+	}
+
+	results, err := m.Parse()
+	return results, err
+}
