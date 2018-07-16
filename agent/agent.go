@@ -31,7 +31,7 @@ func ScanTask(queue string, args ...interface{}) error {
 	taskTime := args[2].(string)
 	log.Println(ipRange)
 	core.CoreScanEngine(ipRange, rate, taskTime)
-	log.Println("From " + queue " " + args)
+	log.Println("From " + queue + " " + args[3].(string))
 	return nil
 }
 
@@ -76,7 +76,7 @@ func DownloadNewAgent(url string) (bool, error) {
 
 	fileName = "agent"
 
-	cmd := exec.Command("cp", fileName, "/export/Data/agent_bak/" + fileName + version)
+	cmd := exec.Command("cp", fileName, "/export/Data/agent_bak/"+fileName+"."+version)
 	cmd.Run()
 
 	cmd = exec.Command("rm", "-rf", fileName)
@@ -95,7 +95,7 @@ func DownloadNewAgent(url string) (bool, error) {
 
 	log.Println("-----新版本下载成功-------")
 
-	cmdd := exec.Command("chmod", "+x", file_name)
+	cmdd := exec.Command("chmod", "+x", fileName)
 	cmdd.Run()
 
 	res.Body.Close()
