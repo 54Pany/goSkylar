@@ -1,12 +1,9 @@
 package source
 
 import (
-	"fmt"
+	"goSkylar/pipeline/monitor"
 	"log"
 	"os"
-	"goSkylar/pipeline/channel"
-	"gopkg.in/redis.v5"
-	"goSkylar/pipeline/monitor"
 )
 
 var (
@@ -21,7 +18,7 @@ type RedisSub struct {
 }
 
 func (this *RedisSub) Run(q1 *queue.EsQueue) {
-	fmt.Println("run redis sub source")
+	log.Println("run redis sub source")
 
 	//client := redis.NewClient(&redis.Options{
 	//	Addr:     eredis_host,
@@ -42,7 +39,7 @@ func (this *RedisSub) Run(q1 *queue.EsQueue) {
 	for {
 		msg, error := pubsub.ReceiveMessage()
 		if error != nil {
-			fmt.Println(error)
+			log.Println(error)
 
 			for {
 				pubsub, err = this.ConnectRedis()
@@ -59,7 +56,7 @@ func (this *RedisSub) Run(q1 *queue.EsQueue) {
 				}
 			}
 		} else {
-			fmt.Println(msg.Payload)
+			log.Println(msg.Payload)
 			q1.Put(msg.Payload)
 		}
 	}
@@ -73,7 +70,7 @@ func (this *RedisSub) ConnectRedis() (*redis.PubSub, error) {
 	})
 	pubsub, e := client.Subscribe(channels)
 	if e != nil {
-		fmt.Println(e)
+		log.Println(e)
 	}
 	return pubsub, e
 }

@@ -1,7 +1,6 @@
 package data
 
 import (
-	"fmt"
 	"goSkylar/lib"
 	"log"
 	"strconv"
@@ -55,7 +54,7 @@ func DataTransfer(msg string) error {
 		if err != nil {
 			log.Println("----Pipeline数据库查询报错----" + err.Error())
 		}
-		fmt.Println(count)
+		log.Println(count)
 		if count == 0 {
 			log.Println("--------Data Insert----------")
 			log.Println(msgList)

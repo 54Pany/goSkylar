@@ -1,15 +1,14 @@
 package lib
 
 import (
-	"os"
-	"fmt"
 	"log"
+	"os"
 )
 
 func LogSetting() { //解析参数付给logF
 	outfile, err := os.OpenFile("log/"+CurrentDate()+".log", os.O_CREATE|os.O_RDWR|os.O_APPEND, 0666)
 	if err != nil {
-		fmt.Println(*outfile, "open failed")
+		log.Println(*outfile, "open failed")
 		os.Exit(1)
 	}
 	log.SetOutput(outfile)                               //设置log的输出文件，不设置log输出默认为stdout

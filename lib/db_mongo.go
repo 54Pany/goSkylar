@@ -2,7 +2,6 @@ package lib
 
 import (
 	"fmt"
-	"gopkg.in/mgo.v2"
 )
 
 type MongoDriver struct {
@@ -17,11 +16,11 @@ func (this *MongoDriver) Init() error {
 		this.DbSource = "default"
 	}
 	cfg := NewConfigUtil("config.ini")
-	mongodb_url, err := cfg.GetString(fmt.Sprintf("mongodb_%s", this.DbSource), "url")
+	mongodbURL, err := cfg.GetString(fmt.Sprintf("mongodb_%s", this.DbSource), "url")
 	if err != nil {
 		return err
 	}
-	s, err := mgo.Dial(mongodb_url)
+	s, err := mgo.Dial(mongodbURL)
 	if err != nil {
 		return err
 	}
