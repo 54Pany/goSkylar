@@ -1,20 +1,20 @@
 package main
 
 import (
-	"time"
-	"goSkylar/lib"
-	"github.com/go-redis/redis"
-	"sync"
-	"fmt"
-	"github.com/bipabo1l/goworker"
 	"goSkylar/core"
-	"github.com/levigross/grequests"
-	"os/exec"
-	"os"
+	"goSkylar/lib"
 	"io"
-	"net/http"
-	"path/filepath"
 	"log"
+	"net/http"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"sync"
+	"time"
+
+	"github.com/bipabo1l/goworker"
+	"github.com/go-redis/redis"
+	"github.com/levigross/grequests"
 )
 
 var (
@@ -25,65 +25,64 @@ var (
 
 // 扫描
 func ScanTask(queue string, args ...interface{}) error {
-	fmt.Println("调用队列:" + queue)
+	log.Println("调用队列:" + queue)
 	ipRange := args[0].(string)
 	rate := args[1].(string)
 	taskTime := args[2].(string)
-	fmt.Println(ipRange)
+	log.Println(ipRange)
 	core.CoreScanEngine(ipRange, rate, taskTime)
-	fmt.Printf("From %s, %v\n", queue, args)
+	log.Println("From " + queue " " + args)
 	return nil
 }
 
 var (
 	version     = "1.0.0"
-	downloadUrl = ""
+	downloadURL = ""
 )
 
-func Version_validate(c chan string, version_url string, linux_download_url string) (bool) {
-	resp, err := grequests.Get(version_url, nil)
+//check版本
+func VersionValidate(c chan string, versionURL string, linuxDownloadURL string) bool {
+	resp, err := grequests.Get(versionURL, nil)
 
 	// You can modify the request by passing an optional RequestOptions struct
 	if err != nil {
-		fmt.Println("Validate version error: Unable to make request ")
+		log.Println("Validate version error: Unable to make request ")
 		return false
-	} else {
-		new_version := resp.String()
-		if version != new_version {
-			downloadUrl = linux_download_url
-
-			download, _ := Download_new_agent(downloadUrl)
-			if download == true {
-				c <- "new"
-				fmt.Println("-----发现新版本-------" + new_version)
-				return true
-			} else {
-				c <- "old"
-				return false
-			}
-		} else {
-			log.Println("-----Version:当前版本已是最新-----版本号：" + version)
-			return false
-		}
 	}
+
+	newVersion := resp.String()
+	if version != newVersion {
+		downloadURL = linuxDownloadURL
+		download, _ := DownloadNewAgent(downloadURL)
+		if download == true {
+			c <- "new"
+			log.Println("-----发现新版本-------" + newVersion)
+			return true
+		}
+		c <- "old"
+		return false
+	}
+	log.Println("-----Version:当前版本已是最新-----版本号：" + version)
+	return false
 }
 
-func Download_new_agent(url string) (bool, error) {
+//downlaod new agent
+func DownloadNewAgent(url string) (bool, error) {
 	res, err := http.Get(url)
 	if err != nil {
 		return false, err
 	}
-	var file_name string
+	var fileName string
 
-	file_name = "agent"
+	fileName = "agent"
 
-	cmd := exec.Command("cp", file_name, "/export/Data/agent_bak/"+file_name)
+	cmd := exec.Command("cp", fileName, "/export/Data/agent_bak/" + fileName + version)
 	cmd.Run()
 
-	cmd = exec.Command("rm", "-rf", file_name)
+	cmd = exec.Command("rm", "-rf", fileName)
 	cmd.Run()
 
-	f, err := os.Create(file_name)
+	f, err := os.Create(fileName)
 	if err != nil {
 		log.Println(err.Error())
 		return false, err
@@ -102,10 +101,10 @@ func Download_new_agent(url string) (bool, error) {
 	res.Body.Close()
 	f.Close()
 	return true, er
-
 }
 
-func Restart_process() {
+//restart process
+func RestartProcess() {
 	filePath, _ := filepath.Abs(os.Args[0])
 	cmd := exec.Command(filePath)
 	cmd.Stdout = os.Stdout
@@ -142,8 +141,8 @@ func main() {
 	//lib.LogSetting()
 
 	cfg := lib.NewConfigUtil("")
-	versionUrl, _ := cfg.GetString("web_default", "version_url")
-	DownloadUrl, _ := cfg.GetString("web_default", "download_url")
+	versionURL, _ := cfg.GetString("web_default", "version_url")
+	DownloadURL, _ := cfg.GetString("web_default", "download_url")
 
 	waitgroup.Add(1)
 
@@ -151,7 +150,7 @@ func main() {
 
 	go func() {
 		for {
-			Version_validate(signals, versionUrl, DownloadUrl)
+			VersionValidate(signals, versionURL, DownloadURL)
 			time.Sleep(1 * time.Minute)
 		}
 	}()
@@ -159,7 +158,7 @@ func main() {
 	go func() {
 		for {
 			if err := goworker.Work(); err != nil {
-				fmt.Println("Error:", err)
+				log.Println("Error:", err)
 			}
 		}
 	}()
@@ -168,14 +167,13 @@ func main() {
 		select {
 		case signal := <-signals:
 			if signal == "new" {
-				Restart_process()
+				RestartProcess()
 				return
 			}
 		case <-time.After(30 * time.Second):
-			fmt.Println("your version is the latest, check again after 10 second...")
+			log.Println("your version is the latest, check again after 10 second...")
 			continue
 		}
 	}
 
-	waitgroup.Wait()
 }

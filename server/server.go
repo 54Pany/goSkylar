@@ -3,27 +3,27 @@ package main
 import (
 	"goSkylar/lib"
 	"log"
-	"time"
-	"github.com/go-redis/redis"
 	"strconv"
-	"github.com/bipabo1l/goworker"
-	"fmt"
 	"sync"
+	"time"
+
+	"github.com/bipabo1l/goworker"
+	"github.com/go-redis/redis"
 	"github.com/satori/go.uuid"
 )
 
 var (
-	OuterRedisDriver    *redis.Client
-	waitgroup           sync.WaitGroup
-	ordinary_scan_rate  string
-	whitelist_scan_rate string
+	OuterRedisDriver  *redis.Client
+	waitgroup         sync.WaitGroup
+	ordinaryScanRate  string
+	whitelistScanRate string
 )
 
 func init() {
 	var cfg = lib.NewConfigUtil("")
 
-	ordinary_scan_rate, _ = cfg.GetString("masscan_rate", "ordinary_scan_rate")
-	whitelist_scan_rate, _ = cfg.GetString("masscan_rate", "whitelist_scan_rate")
+	ordinaryScanRate, _ = cfg.GetString("masscan_rate", "ordinary_scan_rate")
+	whitelistScanRate, _ = cfg.GetString("masscan_rate", "whitelist_scan_rate")
 
 	var dsnAddr string
 	dsnAddr = lib.DsnAddr
@@ -60,7 +60,7 @@ func main() {
 	tickerWhite := time.NewTicker(time.Hour * 8)
 	tickerUrgent := time.NewTicker(time.Minute * 1)
 
-	fmt.Printf("ticked at %v\n", time.Now())
+	log.Println("ticked at: " + time.Now())
 	u, err := uuid.NewV4()
 	if err != nil {
 		log.Println(err)
@@ -77,7 +77,7 @@ func main() {
 			Queue: "ScanTaskQueue",
 			Payload: goworker.Payload{
 				Class: "ScanTask",
-				Args:  []interface{}{string(ipRange), ordinary_scan_rate, taskTime},
+				Args:  []interface{}{string(ipRange), ordinaryScanRate, taskTime},
 			},
 		},
 			true, taskid, property)
@@ -92,7 +92,7 @@ func main() {
 		for {
 			select {
 			case <-ticker.C:
-				fmt.Printf("ticked at %v\n", time.Now())
+				log.Println("ticked at: " + time.Now())
 				u, err := uuid.NewV4()
 				if err != nil {
 					log.Println(err)
@@ -108,7 +108,7 @@ func main() {
 						Queue: "ScanTaskQueue",
 						Payload: goworker.Payload{
 							Class: "ScanTask",
-							Args:  []interface{}{string(ipRange), ordinary_scan_rate},
+							Args:  []interface{}{string(ipRange), ordinaryScanRate},
 						},
 					},
 						true, taskid, property)
@@ -122,7 +122,7 @@ func main() {
 		for {
 			select {
 			case <-tickerWhite.C:
-				fmt.Printf("ticked at %v\n", time.Now())
+				log.Println("ticked at: " + time.Now())
 				u, err := uuid.NewV4()
 				if err != nil {
 					log.Println(err)
@@ -137,7 +137,7 @@ func main() {
 						Queue: "ScanTaskQueue",
 						Payload: goworker.Payload{
 							Class: "ScanTask",
-							Args:  []interface{}{string(ipRange), whitelist_scan_rate},
+							Args:  []interface{}{string(ipRange), whitelistScanRate},
 						},
 					},
 						true, taskid, property)
@@ -151,7 +151,7 @@ func main() {
 		for {
 			select {
 			case <-tickerUrgent.C:
-				fmt.Printf("ticked at %v\n", time.Now())
+				log.Println("ticked at: " + time.Now())
 				urgentIPs := lib.FindUrgentIP()
 				if len(urgentIPs) > 0 {
 					u, err := uuid.NewV4()
@@ -171,14 +171,14 @@ func main() {
 							Queue: "ScanTaskQueue",
 							Payload: goworker.Payload{
 								Class: "ScanTask",
-								Args:  []interface{}{string(ipRange), ordinary_scan_rate},
+								Args:  []interface{}{string(ipRange), ordinaryScanRate},
 							},
 						},
 							true, taskid, property)
 					}
 					lib.UpdateUrgentScanStatus()
 				} else {
-					fmt.Println("无最新临时任务 %v\n", time.Now())
+					log.Println("无最新临时任务: " + time.Now())
 				}
 			}
 		}
