@@ -1,14 +1,14 @@
 package data
 
 import (
-	"strings"
+	"fmt"
 	"goSkylar/lib"
 	"log"
 	"strconv"
-	"gopkg.in/mgo.v2"
+	"strings"
 	"time"
+
 	"gopkg.in/mgo.v2/bson"
-	"fmt"
 )
 
 var (
@@ -48,7 +48,10 @@ func DataTransfer(msg string) error {
 		msgStruct.MachineIp = msgList[5]
 		msgStruct.InputTime = time.Now().Format("2006-01-02 15:04:05")
 		//查询数据库中是否存在记录
-		count, err := portScanResult.Find(bson.M{"ip": msgStruct.Ip, "portid": msgStruct.PortId, "protocol": msgStruct.Protocol, "service": msgStruct.Service, "tasktime": msgStruct.TaskTime}).Count()
+		count, err := portScanResult.Find(
+			bson.M{"ip": msgStruct.Ip, "portid": msgStruct.PortId,
+				"protocol": msgStruct.Protocol, "service": msgStruct.Service,
+				"tasktime": msgStruct.TaskTime}).Count()
 		if err != nil {
 			log.Println("----Pipeline数据库查询报错----" + err.Error())
 		}
