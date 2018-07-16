@@ -1,7 +1,6 @@
 package main
 
 import (
-	"strconv"
 	"time"
 	"goSkylar/lib"
 	"github.com/go-redis/redis"
@@ -37,7 +36,7 @@ func ScanTask(queue string, args ...interface{}) error {
 }
 
 var (
-	version     = "3.3.3"
+	version     = "1.0.0"
 	downloadUrl = ""
 )
 
@@ -118,26 +117,9 @@ func Restart_process() {
 }
 
 func init() {
-	var cfg = lib.NewConfigUtil("")
-	redisHost, _ := cfg.GetString("redis_default", "host")
-	redisPort, _ := cfg.GetString("redis_default", "port")
-	redisPass, _ := cfg.GetString("redis_default", "pass")
-	var redisDbStr, _ = cfg.GetString("redis_default", "db")
-	var redisDb, _ = strconv.Atoi(redisDbStr)
+	RedisDriver = lib.RedisDriver
 
-	RedisDriver = redis.NewClient(&redis.Options{
-		Addr:        redisHost + ":" + redisPort,
-		Password:    redisPass,
-		DB:          redisDb,
-		DialTimeout: time.Second * 2,
-		//IdleTimeout: time.Second * 1000000,
-	})
-
-	if redisPass != "" {
-		dsnAddr = fmt.Sprintf("redis://root:%s@%s:%s/%s", redisPass, redisHost, redisPort, redisDbStr)
-	} else {
-		dsnAddr = fmt.Sprintf("redis://%s:%s/%s", redisHost, redisPort, redisDbStr)
-	}
+	dsnAddr = lib.DsnAddr
 
 	// 初始化
 	settings := goworker.WorkerSettings{

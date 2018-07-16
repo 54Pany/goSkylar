@@ -24,6 +24,8 @@ var RedisDriver = redis.NewClient(&redis.Options{
 	//IdleTimeout: time.Second * 1000000,
 })
 
+var DsnAddr = fmt.Sprintf("redis://root:%s@%s:%s/%s", redisPass, redisHost, redisPort, redisDbStr)
+
 func PushPortInfoToRedis(infoStr string, taskTime string, selfIp string) error {
 	var redisDriver = RedisDriver
 	infoStr = infoStr + "§§§§" + taskTime + "§§§§" + selfIp

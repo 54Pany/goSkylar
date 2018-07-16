@@ -102,3 +102,7 @@ func RunNmap(ip string, port string) ([]nmap.NmapResultStruct, error) {
 	results, err := m.Parse()
 	return results, err
 }
+
+func ScannerResultTransfer(resultStruct nmap.NmapResultStruct) string {
+	return resultStruct.Ip + "§§§§" + strconv.Itoa(resultStruct.PortId) + "§§§§" + resultStruct.Protocol + "§§§§" + resultStruct.Service
+}

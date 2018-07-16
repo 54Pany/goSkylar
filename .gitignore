@@ -5,3 +5,4 @@
 log/*
 agent/agent
 server/server
+pipeline/main
