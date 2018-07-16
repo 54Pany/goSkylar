@@ -60,29 +60,6 @@ func main() {
 	tickerWhite := time.NewTicker(time.Hour * 8)
 	tickerUrgent := time.NewTicker(time.Minute * 1)
 
-	log.Println("ticked at: " + time.Now())
-	u, err := uuid.NewV4()
-	if err != nil {
-		log.Println(err)
-	}
-	taskid := u.String()
-	log.Println(taskid)
-	property := "RoutineScan"
-	taskTime := time.Now().Format("2006-01-02 15:04:05")
-	//ipRangeList := []string{"211.151.8.88/32"}
-	for _, ipRange := range ipRangeList {
-
-		log.Println("例行扫描Adding：" + ipRange)
-		goworker.Enqueue(&goworker.Job{
-			Queue: "ScanTaskQueue",
-			Payload: goworker.Payload{
-				Class: "ScanTask",
-				Args:  []interface{}{string(ipRange), ordinaryScanRate, taskTime},
-			},
-		},
-			true, taskid, property)
-	}
-
 	log.Println("例行扫描任务加入结束")
 
 	// 首次运行
@@ -92,7 +69,7 @@ func main() {
 		for {
 			select {
 			case <-ticker.C:
-				log.Println("ticked at: " + time.Now())
+				log.Println("ticked at: " + lib.DateToStr(time.Now().Unix()))
 				u, err := uuid.NewV4()
 				if err != nil {
 					log.Println(err)
@@ -122,14 +99,14 @@ func main() {
 		for {
 			select {
 			case <-tickerWhite.C:
-				log.Println("ticked at: " + time.Now())
+				log.Println("ticked at: " + lib.DateToStr(time.Now().Unix()))
 				u, err := uuid.NewV4()
 				if err != nil {
 					log.Println(err)
 				}
 				taskid := u.String()
 				log.Println(taskid)
-				property := "RoutineScan"
+				property := "RoutineWhiteListScan"
 				for _, ipRange := range whiteIpsIprange {
 
 					log.Println("例行扫描Adding：" + ipRange)
@@ -151,7 +128,7 @@ func main() {
 		for {
 			select {
 			case <-tickerUrgent.C:
-				log.Println("ticked at: " + time.Now())
+				log.Println("ticked at: " + lib.DateToStr(time.Now().Unix()))
 				urgentIPs := lib.FindUrgentIP()
 				if len(urgentIPs) > 0 {
 					u, err := uuid.NewV4()
@@ -161,7 +138,7 @@ func main() {
 					taskid := u.String()
 					//临时任务id
 					log.Println(taskid)
-					property := "RoutineScan"
+					property := "UrgentScan"
 					for _, ip := range urgentIPs {
 
 						ipRange := lib.Iptransfer(ip)
@@ -178,7 +155,7 @@ func main() {
 					}
 					lib.UpdateUrgentScanStatus()
 				} else {
-					log.Println("无最新临时任务: " + time.Now())
+					log.Println("无最新临时任务: " + lib.DateToStr(time.Now().Unix()))
 				}
 			}
 		}
