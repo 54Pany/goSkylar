@@ -2,6 +2,7 @@ package lib
 
 import (
 	"fmt"
+	"gopkg.in/mgo.v2"
 )
 
 type MongoDriver struct {

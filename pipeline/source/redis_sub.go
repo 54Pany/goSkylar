@@ -4,6 +4,8 @@ import (
 	"goSkylar/pipeline/monitor"
 	"log"
 	"os"
+	"goSkylar/pipeline/channel"
+	"gopkg.in/redis.v5"
 )
 
 var (
