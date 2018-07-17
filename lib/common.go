@@ -8,6 +8,8 @@ import (
 	"time"
 	"net"
 	"gopkg.in/mgo.v2/bson"
+	"crypto/md5"
+	"encoding/hex"
 )
 
 func IpStringToInt(ipstring string) int {
@@ -188,4 +190,56 @@ func Iptransfer(ip string) string {
 
 func UpdateUrgentScanStatus() {
 	externalcanurgent.UpdateAll(bson.M{"isscaned": false}, bson.M{"$set": bson.M{"isscaned": true}})
+}
+
+func InterfaceToStr(inter interface{}) (s string) {
+	tempStr := ""
+	switch inter.(type) {
+	case nil:
+		tempStr = ""
+		break
+	case string:
+		tempStr = inter.(string)
+		break
+	case float64:
+		tempStr = strconv.FormatFloat(inter.(float64), 'f', -1, 64)
+		break
+	case int64:
+		tempStr = strconv.FormatInt(inter.(int64), 10)
+		break
+	case int:
+		tempStr = strconv.Itoa(inter.(int))
+		break
+	case bool:
+		tempStr = strconv.FormatBool(inter.(bool))
+	case bson.ObjectId:
+		tempStr = inter.(bson.ObjectId).Hex()
+	case []interface{}:
+		tempStr, _ = JsonToString(inter)
+	case []int:
+		tempStr, _ = JsonToString(inter)
+	case []int64:
+		tempStr, _ = JsonToString(inter)
+	case []float32:
+		tempStr, _ = JsonToString(inter)
+	case []float64:
+		tempStr, _ = JsonToString(inter)
+	case map[string]interface{}:
+		tempStr, _ = JsonToString(inter)
+	case map[string]string:
+		tempStr, _ = JsonToString(inter)
+	case time.Time:
+		tempStr = inter.(time.Time).String()
+	default:
+		tempStr = "Error! Not Found Type!"
+	}
+	return tempStr
+}
+
+
+//md5加密
+func Md5Str(str string) string {
+	strMd5 := md5.New()
+	strMd5.Write([]byte(str))
+	return hex.EncodeToString(strMd5.Sum(nil))
 }

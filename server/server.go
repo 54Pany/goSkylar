@@ -25,8 +25,10 @@ func init() {
 	ordinaryScanRate, _ = cfg.GetString("masscan_rate", "ordinary_scan_rate")
 	whitelistScanRate, _ = cfg.GetString("masscan_rate", "whitelist_scan_rate")
 
+	OuterRedisDriver = lib.RedisOuterDriver
+
 	var dsnAddr string
-	dsnAddr = lib.DsnAddr
+	dsnAddr = lib.DsnOuterAddr
 
 	// 初始化
 	settings := goworker.WorkerSettings{
@@ -56,11 +58,9 @@ func main() {
 
 	//aChan := make(chan int, 1)
 	waitgroup.Add(1)
-	ticker := time.NewTicker(time.Hour * 8)
-	tickerWhite := time.NewTicker(time.Hour * 8)
-	tickerUrgent := time.NewTicker(time.Minute * 1)
-
-	log.Println("例行扫描任务加入结束")
+	ticker := time.NewTicker(time.Hour * 14)
+	tickerWhite := time.NewTicker(time.Hour * 20)
+	tickerUrgent := time.NewTicker(time.Hour * 2)
 
 	// 首次运行
 
@@ -77,6 +77,7 @@ func main() {
 				taskid := u.String()
 				log.Println(taskid)
 				property := "RoutineScan"
+				log.Println("开始例行扫描任务")
 
 				for _, ipRange := range ipRangeList {
 
@@ -107,6 +108,8 @@ func main() {
 				taskid := u.String()
 				log.Println(taskid)
 				property := "RoutineWhiteListScan"
+				log.Println("开始例行白名单扫描任务")
+
 				for _, ipRange := range whiteIpsIprange {
 
 					log.Println("例行扫描Adding：" + ipRange)

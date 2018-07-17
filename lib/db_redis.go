@@ -26,7 +26,24 @@ var (
 		//IdleTimeout: time.Second * 1000000,
 	})
 
+	redisOuterHost, _    = cfg.GetString("redis_outer", "host")
+	redisOuterPort, _    = cfg.GetString("redis_outer", "port")
+	redisOuterPass, _    = cfg.GetString("redis_outer", "pass")
+	redisOuterDbStr, _   = cfg.GetString("redis_outer", "db")
+	redisOuterDb, _      = strconv.Atoi(redisDbStr)
+	redisOuterChannel, _ = cfg.GetString("redis_outer", "channel")
+
+	RedisOuterDriver = redis.NewClient(&redis.Options{
+		Addr:        redisOuterHost + ":" + redisOuterPort,
+		Password:    redisOuterPass,
+		DB:          redisOuterDb,
+		DialTimeout: time.Second * 2,
+		//IdleTimeout: time.Second * 1000000,
+	})
+
 	DsnAddr = fmt.Sprintf("redis://root:%s@%s:%s/%s", redisPass, redisHost, redisPort, redisDbStr)
+
+	DsnOuterAddr = fmt.Sprintf("redis://root:%s@%s:%s/%s", redisOuterPass, redisOuterHost, redisOuterPort, redisOuterDbStr)
 )
 
 func PushPortInfoToRedis(infoStr string, taskTime string, selfIp string) error {

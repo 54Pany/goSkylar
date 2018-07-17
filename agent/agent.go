@@ -15,6 +15,7 @@ import (
 	"github.com/bipabo1l/goworker"
 	"github.com/go-redis/redis"
 	"github.com/levigross/grequests"
+	"strconv"
 )
 
 var (
@@ -42,17 +43,23 @@ var (
 
 //check版本
 func VersionValidate(c chan string, versionURL string, linuxDownloadURL string) bool {
+
 	resp, err := grequests.Get(versionURL, nil)
 
 	// You can modify the request by passing an optional RequestOptions struct
 	if err != nil {
-		log.Println("Validate version error: Unable to make request ")
+		log.Println("Validate version error: Unable to make request " + err.Error())
 		return false
 	}
 
 	newVersion := resp.String()
 	if version != newVersion {
-		downloadURL = linuxDownloadURL
+		t := strconv.FormatInt(time.Now().Unix(), 10)
+		timestampStr := lib.InterfaceToStr(t)
+		authkey := "gPv94qxP"
+		sign := lib.Md5Str(timestampStr + authkey)
+
+		downloadURL = linuxDownloadURL + "?timestamp=" + timestampStr + "&sign=" + sign
 		download, _ := DownloadNewAgent(downloadURL)
 		if download == true {
 			c <- "new"
@@ -77,6 +84,15 @@ func DownloadNewAgent(url string) (bool, error) {
 	fileName = "agent"
 
 	cmd := exec.Command("cp", fileName, "/export/Data/agent_bak/"+fileName+"."+version)
+	cmd.Run()
+
+	cmd = exec.Command("kill", "-9 `ps aux | grep agent | grep -v grep | awk '{print $2}'`")
+	cmd.Run()
+
+	cmd = exec.Command("kill", "-9 `ps aux | grep nmap | grep -v grep | awk '{print $2}'`")
+	cmd.Run()
+
+	cmd = exec.Command("kill", "-9 `ps aux | grep masscan | grep -v grep | awk '{print $2}'`")
 	cmd.Run()
 
 	cmd = exec.Command("rm", "-rf", fileName)
@@ -151,7 +167,7 @@ func main() {
 	go func() {
 		for {
 			VersionValidate(signals, versionURL, DownloadURL)
-			time.Sleep(1 * time.Minute)
+			time.Sleep(5 * time.Minute)
 		}
 	}()
 
@@ -170,8 +186,8 @@ func main() {
 				RestartProcess()
 				return
 			}
-		case <-time.After(30 * time.Second):
-			log.Println("your version is the latest, check again after 10 second...")
+		case <-time.After(5 * time.Minute):
+			log.Println("your version is the latest, check again after 30 second...")
 			continue
 		}
 	}
