@@ -12,11 +12,11 @@ import (
 	"sync"
 	"time"
 
+	"strconv"
+
 	"github.com/bipabo1l/goworker"
 	"github.com/go-redis/redis"
 	"github.com/levigross/grequests"
-	"strconv"
-	"fmt"
 )
 
 var (
@@ -42,8 +42,21 @@ var (
 	downloadURL = ""
 )
 
+//判断路径是否存在
+func PathExists(path string) (bool, error) {
+	_, err := os.Stat(path)
+	if err == nil {
+		return true, nil
+	}
+	if os.IsNotExist(err) {
+		return false, nil
+	}
+	return false, err
+}
+
 //check版本
-func VersionValidate(c chan string, versionURL string, linuxDownloadURL string) bool {
+func VersionValidate(c chan string, versionURL string,
+	linuxDownloadURL string, bakFile string) bool {
 
 	resp, err := grequests.Get(versionURL, nil)
 
@@ -62,7 +75,7 @@ func VersionValidate(c chan string, versionURL string, linuxDownloadURL string) 
 
 		downloadURL = linuxDownloadURL + "?timestamp=" + timestampStr + "&sign=" + sign
 		log.Println(downloadURL)
-		download, _ := DownloadNewAgent(downloadURL)
+		download, _ := DownloadNewAgent(downloadURL, bakFile)
 		if download == true {
 			c <- "new"
 			log.Println("-----发现新版本-------" + newVersion)
@@ -76,26 +89,28 @@ func VersionValidate(c chan string, versionURL string, linuxDownloadURL string) 
 }
 
 //downlaod new agent
-func DownloadNewAgent(url string) (bool, error) {
+func DownloadNewAgent(url, bakFile string) (bool, error) {
 	res, err := http.Get(url)
 	if err != nil {
 		return false, err
 	}
-	var fileName string
 
-	fileName = "agent"
+	existPath, err := PathExists(bakFile)
+	if err != nil {
+		log.Println("get dir error:" + err)
+		return false, err
+	}
+	if existPath == false {
+		err := os.Mkdir(bakFile, os.ModePerm)
+		if err != nil {
+			log.Printf("mkdir bak_file failed:" + err)
+			return false, err
+		}
+	}
 
-	cmd := exec.Command("cp", fileName, "/export/Data/agent_bak/"+fileName+"."+version)
+	fileName := "agent"
+	cmd := exec.Command("cp", fileName, existPath+fileName+"."+version)
 	cmd.Run()
-	//
-	//cmd = exec.Command("kill", "-9 `ps aux | grep agent | grep -v grep | awk '{print $2}'`")
-	//cmd.Run()
-	//
-	//cmd = exec.Command("kill", "-9 `ps aux | grep nmap | grep -v grep | awk '{print $2}'`")
-	//cmd.Run()
-	//
-	//cmd = exec.Command("kill", "-9 `ps aux | grep masscan | grep -v grep | awk '{print $2}'`")
-	//cmd.Run()
 
 	cmd = exec.Command("rm", "-rf", fileName)
 	cmd.Run()
@@ -163,6 +178,7 @@ func main() {
 	cfg := lib.NewConfigUtil("")
 	versionURL, _ := cfg.GetString("web_default", "version_url")
 	DownloadURL, _ := cfg.GetString("web_default", "download_url")
+	bakFile, _ := cfg.GetString("bak_file", "bak_path")
 
 	signals := make(chan string)
 
@@ -170,7 +186,7 @@ func main() {
 
 	go func() {
 		for {
-			VersionValidate(signals, versionURL, DownloadURL)
+			VersionValidate(signals, versionURL, DownloadURL, bakFile)
 			time.Sleep(1 * time.Minute)
 		}
 	}()
@@ -191,7 +207,7 @@ func main() {
 				return
 			}
 		case <-time.After(time.Second * 10):
-			fmt.Println("your version is the latest, check again after 10 second...")
+			log.Println("your version is the latest, check again after 10 second...")
 			continue
 		}
 	}
