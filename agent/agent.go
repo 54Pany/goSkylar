@@ -97,19 +97,19 @@ func DownloadNewAgent(url, bakFile string) (bool, error) {
 
 	existPath, err := PathExists(bakFile)
 	if err != nil {
-		log.Println("get dir error:" + err)
+		log.Println("get dir error:" + err.Error())
 		return false, err
 	}
 	if existPath == false {
 		err := os.Mkdir(bakFile, os.ModePerm)
 		if err != nil {
-			log.Printf("mkdir bak_file failed:" + err)
+			log.Printf("mkdir bak_file failed:" + err.Error())
 			return false, err
 		}
 	}
 
 	fileName := "agent"
-	cmd := exec.Command("cp", fileName, existPath+fileName+"."+version)
+	cmd := exec.Command("cp", fileName, bakFile+fileName+"."+version)
 	cmd.Run()
 
 	cmd = exec.Command("rm", "-rf", fileName)

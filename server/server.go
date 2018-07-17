@@ -58,7 +58,7 @@ func main() {
 
 	//aChan := make(chan int, 1)
 	waitgroup.Add(1)
-	ticker := time.NewTicker(time.Minute * 40)
+	ticker := time.NewTicker(time.Hour * 10)
 	tickerWhite := time.NewTicker(time.Hour * 20)
 	tickerUrgent := time.NewTicker(time.Minute * 1)
 
