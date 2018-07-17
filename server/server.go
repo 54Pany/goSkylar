@@ -58,9 +58,9 @@ func main() {
 
 	//aChan := make(chan int, 1)
 	waitgroup.Add(1)
-	ticker := time.NewTicker(time.Hour * 14)
+	ticker := time.NewTicker(time.Minute * 40)
 	tickerWhite := time.NewTicker(time.Hour * 20)
-	tickerUrgent := time.NewTicker(time.Hour * 2)
+	tickerUrgent := time.NewTicker(time.Minute * 1)
 
 	// 首次运行
 
@@ -86,7 +86,7 @@ func main() {
 						Queue: "ScanTaskQueue",
 						Payload: goworker.Payload{
 							Class: "ScanTask",
-							Args:  []interface{}{string(ipRange), ordinaryScanRate},
+							Args:  []interface{}{string(ipRange), ordinaryScanRate, taskid},
 						},
 					},
 						true, taskid, property)
@@ -117,7 +117,7 @@ func main() {
 						Queue: "ScanTaskQueue",
 						Payload: goworker.Payload{
 							Class: "ScanTask",
-							Args:  []interface{}{string(ipRange), whitelistScanRate},
+							Args:  []interface{}{string(ipRange), whitelistScanRate, taskid},
 						},
 					},
 						true, taskid, property)
@@ -151,7 +151,7 @@ func main() {
 							Queue: "ScanTaskQueue",
 							Payload: goworker.Payload{
 								Class: "ScanTask",
-								Args:  []interface{}{string(ipRange), ordinaryScanRate},
+								Args:  []interface{}{string(ipRange), ordinaryScanRate, taskid},
 							},
 						},
 							true, taskid, property)

@@ -16,6 +16,7 @@ import (
 	"github.com/go-redis/redis"
 	"github.com/levigross/grequests"
 	"strconv"
+	"fmt"
 )
 
 var (
@@ -37,7 +38,7 @@ func ScanTask(queue string, args ...interface{}) error {
 }
 
 var (
-	version     = "1.0.0"
+	version     = "1.0.9"
 	downloadURL = ""
 )
 
@@ -60,6 +61,7 @@ func VersionValidate(c chan string, versionURL string, linuxDownloadURL string) 
 		sign := lib.Md5Str(timestampStr + authkey)
 
 		downloadURL = linuxDownloadURL + "?timestamp=" + timestampStr + "&sign=" + sign
+		log.Println(downloadURL)
 		download, _ := DownloadNewAgent(downloadURL)
 		if download == true {
 			c <- "new"
@@ -85,15 +87,15 @@ func DownloadNewAgent(url string) (bool, error) {
 
 	cmd := exec.Command("cp", fileName, "/export/Data/agent_bak/"+fileName+"."+version)
 	cmd.Run()
-
-	cmd = exec.Command("kill", "-9 `ps aux | grep agent | grep -v grep | awk '{print $2}'`")
-	cmd.Run()
-
-	cmd = exec.Command("kill", "-9 `ps aux | grep nmap | grep -v grep | awk '{print $2}'`")
-	cmd.Run()
-
-	cmd = exec.Command("kill", "-9 `ps aux | grep masscan | grep -v grep | awk '{print $2}'`")
-	cmd.Run()
+	//
+	//cmd = exec.Command("kill", "-9 `ps aux | grep agent | grep -v grep | awk '{print $2}'`")
+	//cmd.Run()
+	//
+	//cmd = exec.Command("kill", "-9 `ps aux | grep nmap | grep -v grep | awk '{print $2}'`")
+	//cmd.Run()
+	//
+	//cmd = exec.Command("kill", "-9 `ps aux | grep masscan | grep -v grep | awk '{print $2}'`")
+	//cmd.Run()
 
 	cmd = exec.Command("rm", "-rf", fileName)
 	cmd.Run()
@@ -123,6 +125,8 @@ func DownloadNewAgent(url string) (bool, error) {
 func RestartProcess() {
 	filePath, _ := filepath.Abs(os.Args[0])
 	cmd := exec.Command(filePath)
+	log.Println("FilePath:")
+	log.Println(filePath)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	err := cmd.Start()
@@ -160,14 +164,14 @@ func main() {
 	versionURL, _ := cfg.GetString("web_default", "version_url")
 	DownloadURL, _ := cfg.GetString("web_default", "download_url")
 
-	waitgroup.Add(1)
-
 	signals := make(chan string)
+
+	waitgroup.Add(1)
 
 	go func() {
 		for {
 			VersionValidate(signals, versionURL, DownloadURL)
-			time.Sleep(5 * time.Minute)
+			time.Sleep(1 * time.Minute)
 		}
 	}()
 
@@ -186,10 +190,11 @@ func main() {
 				RestartProcess()
 				return
 			}
-		case <-time.After(5 * time.Minute):
-			log.Println("your version is the latest, check again after 30 second...")
+		case <-time.After(time.Second * 10):
+			fmt.Println("your version is the latest, check again after 10 second...")
 			continue
 		}
 	}
 
+	waitgroup.Wait()
 }

@@ -10,6 +10,7 @@ import (
 	"gopkg.in/mgo.v2/bson"
 	"crypto/md5"
 	"encoding/hex"
+	"encoding/json"
 )
 
 func IpStringToInt(ipstring string) int {
@@ -236,6 +237,14 @@ func InterfaceToStr(inter interface{}) (s string) {
 	return tempStr
 }
 
+func JsonToString(inter interface{}) (string, error) {
+	by, err := json.Marshal(inter)
+	if err != nil {
+		return "", err
+	} else {
+		return string(by), nil
+	}
+}
 
 //md5加密
 func Md5Str(str string) string {
