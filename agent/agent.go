@@ -38,7 +38,7 @@ func ScanTask(queue string, args ...interface{}) error {
 }
 
 var (
-	version     = "1.0.9"
+	version     = "1.0.10"
 	downloadURL = ""
 )
 
@@ -207,7 +207,6 @@ func main() {
 				return
 			}
 		case <-time.After(time.Second * 10):
-			log.Println("your version is the latest, check again after 10 second...")
 			continue
 		}
 	}
