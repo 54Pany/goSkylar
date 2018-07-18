@@ -28,9 +28,20 @@ var (
 // 扫描
 func ScanTask(queue string, args ...interface{}) error {
 	log.Println("调用队列:" + queue)
-	ipRange := args[0].(string)
-	rate := args[1].(string)
-	taskTime := args[2].(string)
+	ipRange := ""
+	rate := "20"
+	taskTime := "get_queue_error"
+	if len(args) == 3 {
+		ipRange = args[0].(string)
+		rate = args[1].(string)
+		taskTime = args[2].(string)
+	} else if len(args) == 2 {
+		ipRange = args[0].(string)
+		rate = args[1].(string)
+	} else if len(args) == 1 {
+		ipRange = args[0].(string)
+	}
+
 	log.Println(ipRange)
 	core.CoreScanEngine(ipRange, rate, taskTime)
 	log.Println("From " + queue + " " + args[3].(string))
@@ -38,7 +49,7 @@ func ScanTask(queue string, args ...interface{}) error {
 }
 
 var (
-	version     = "1.0.9"
+	version     = "1.0.10"
 	downloadURL = ""
 )
 
