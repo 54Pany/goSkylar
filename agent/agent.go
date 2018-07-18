@@ -218,7 +218,6 @@ func main() {
 				return
 			}
 		case <-time.After(time.Second * 10):
-			log.Println("your version is the latest, check again after 10 second...")
 			continue
 		}
 	}
