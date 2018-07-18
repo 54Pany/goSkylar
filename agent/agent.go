@@ -29,13 +29,9 @@ var (
 func ScanTask(queue string, args ...interface{}) error {
 	log.Println("调用队列:" + queue)
 	ipRange := ""
-	rate := "20"
+	rate := "2000"
 	taskTime := "get_queue_error"
-	if len(args) == 3 {
-		ipRange = args[0].(string)
-		rate = args[1].(string)
-		taskTime = args[2].(string)
-	} else if len(args) == 2 {
+	if len(args) == 2 {
 		ipRange = args[0].(string)
 		rate = args[1].(string)
 	} else if len(args) == 1 {
