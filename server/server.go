@@ -56,9 +56,28 @@ func main() {
 		whiteIpsIprange = append(whiteIpsIprange, lib.Iptransfer(v))
 	}
 
+
+	property := "RoutineScan"
+	log.Println("开始例行扫描任务testTaskid")
+
+	for _, ipRange := range ipRangeList {
+
+		log.Println("例行扫描Adding：" + ipRange)
+		goworker.Enqueue(&goworker.Job{
+			Queue: "ScanTaskQueue",
+			Payload: goworker.Payload{
+				Class: "ScanTask",
+				Args:  []interface{}{string(ipRange), ordinaryScanRate, "testTaskid"},
+			},
+		},
+			true, "testTaskid", property)
+	}
+
+	log.Println("例行扫描任务加入结束testTaskid")
+
 	//aChan := make(chan int, 1)
 	waitgroup.Add(1)
-	ticker := time.NewTicker(time.Hour * 10)
+	ticker := time.NewTicker(time.Hour * 7)
 	tickerWhite := time.NewTicker(time.Hour * 20)
 	tickerUrgent := time.NewTicker(time.Minute * 1)
 
