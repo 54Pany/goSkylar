@@ -55,6 +55,7 @@ func main() {
 	for _, v := range whiteIps {
 		whiteIpsIprange = append(whiteIpsIprange, lib.Iptransfer(v))
 	}
+
 	//aChan := make(chan int, 1)
 	waitgroup.Add(1)
 	ticker := time.NewTicker(time.Hour * 7)
