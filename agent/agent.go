@@ -14,7 +14,7 @@ import (
 
 	"strconv"
 
-	"github.com/bipabo1l/goworker"
+	"goworker"
 	"github.com/go-redis/redis"
 	"github.com/levigross/grequests"
 )
@@ -26,8 +26,8 @@ var (
 )
 
 // 扫描
-func ScanTask(queue string, args ...interface{}) error {
-	log.Println("调用队列:" + queue)
+func ScanMasscanTask(queue string, args ...interface{}) error {
+	log.Println(lib.TimeToStr(time.Now().Unix()) + "调用队列Masscan:" + queue)
 	ipRange := ""
 	rate := "20"
 	taskTime := "get_queue_error"
@@ -46,6 +46,11 @@ func ScanTask(queue string, args ...interface{}) error {
 	core.CoreScanEngine(ipRange, rate, taskTime)
 	log.Println("From " + queue + " " + args[2].(string))
 	return nil
+}
+
+func ScanNmapTask(queue string, args ...interface{}) error {
+	log.Println(lib.TimeToStr(time.Now().Unix()) + "调用队列Nmap")
+	core.CoreScanNmapEngine()
 }
 
 var (
@@ -180,7 +185,10 @@ func init() {
 
 	goworker.SetSettings(settings)
 
-	goworker.Register("ScanTask", ScanTask)
+	goworker.Register("ScanMasscanTask", ScanMasscanTask)
+
+	goworker.Register("ScanNmapTask", ScanNmapTask)
+
 }
 
 func main() {
@@ -193,9 +201,10 @@ func main() {
 
 	signals := make(chan string)
 
-	waitgroup.Add(1)
+	waitgroup.Add(2)
 
 	go func() {
+		defer waitgroup.Done()
 		for {
 			VersionValidate(signals, versionURL, DownloadURL, bakFile)
 			time.Sleep(1 * time.Minute)
@@ -203,11 +212,12 @@ func main() {
 	}()
 
 	go func() {
-		for {
-			if err := goworker.Work(); err != nil {
-				log.Println("Error:", err)
-			}
+		defer waitgroup.Done()
+
+		if err := goworker.Work(); err != nil {
+			log.Println("Error:", err)
 		}
+
 	}()
 
 	for {

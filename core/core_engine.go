@@ -7,6 +7,8 @@ import (
 	"goSkylar/core/masscan"
 	"goSkylar/core/nmap"
 	"github.com/toolkits/net"
+	"time"
+	"strings"
 )
 
 func CoreScanEngine(ip_range string, rate string, taskTime string) error {
@@ -20,20 +22,36 @@ func CoreScanEngine(ip_range string, rate string, taskTime string) error {
 	}
 	masscanResultStruct, err := RunMasscan(ip_range, rate)
 	for _, v := range masscanResultStruct {
-		engineResult, _ := RunNmap(v.IP, strconv.Itoa(v.Port))
-		for _, v := range engineResult {
-			if v.Protocol != "" {
-				log.Println("--------------")
-				log.Println(v)
-				lib.PushPortInfoToRedis(ScannerResultTransfer(v), taskTime, selfIp)
-			}
-		}
+		lib.RedisDriver.RPush("masscan_result", v.IP+"§§§§"+strconv.Itoa(v.Port)+"§§§§"+selfIp)
 	}
-
-	//for _, v := range masscanResultStruct {
-	//	lib.PushPortInfoToRedis(v.IP + "§§§§" + strconv.Itoa(v.Port) + "§§§§" + "testProtocol" + "§§§§" + "testService")
-	//}
 	return err
+}
+
+func CoreScanNmapEngine() {
+	count, err := lib.RedisDriver.LLen("masscan_result").Result()
+	if err != nil {
+		log.Println(lib.TimeToStr(time.Now().Unix()) + "redis查询失败")
+	}
+	if count > 0 {
+		nmapTaskList, err := lib.RedisDriver.LRange("masscan_result", 0, -1).Result()
+		if err != nil {
+			log.Println(lib.TimeToStr(time.Now().Unix()) + "redis查询失败")
+		}
+		for _, w := range nmapTaskList {
+			wList := strings.Split(w, "§§§§")
+			//判断数量匹配
+			if len(wList) == 3 {
+				engineResult, _ := RunNmap(wList[0], wList[1])
+				for _, v := range engineResult {
+					log.Println("--------------")
+					log.Println(v)
+					lib.PushPortInfoToRedis(ScannerResultTransfer(v), "", wList[2])
+				}
+			}
+
+		}
+
+	}
 
 }
 

@@ -7,9 +7,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/bipabo1l/goworker"
 	"github.com/go-redis/redis"
 	"github.com/satori/go.uuid"
+	"goworker"
 )
 
 var (
@@ -34,12 +34,7 @@ func init() {
 	settings := goworker.WorkerSettings{
 		URI:            dsnAddr,
 		Connections:    100,
-		Queues:         []string{"ScanTaskQueue"},
-		UseNumber:      true,
-		ExitOnComplete: false,
-		Concurrency:    2,
 		Namespace:      "goskylar:",
-		Interval:       5.0,
 	}
 
 	goworker.SetSettings(settings)
@@ -76,7 +71,6 @@ func main() {
 				}
 				taskid := u.String()
 				log.Println(taskid)
-				property := "RoutineScan"
 				log.Println("开始例行扫描任务")
 
 				for _, ipRange := range ipRangeList {
@@ -89,7 +83,7 @@ func main() {
 							Args:  []interface{}{string(ipRange), ordinaryScanRate, taskid},
 						},
 					},
-						true, taskid, property)
+						true)
 				}
 			}
 			log.Println("例行扫描任务加入结束")
@@ -107,7 +101,6 @@ func main() {
 				}
 				taskid := u.String()
 				log.Println(taskid)
-				property := "RoutineWhiteListScan"
 				log.Println("开始例行白名单扫描任务")
 
 				for _, ipRange := range whiteIpsIprange {
@@ -120,7 +113,7 @@ func main() {
 							Args:  []interface{}{string(ipRange), whitelistScanRate, taskid},
 						},
 					},
-						true, taskid, property)
+						true)
 				}
 			}
 			log.Println("例行白名单扫描任务加入结束")
@@ -141,7 +134,6 @@ func main() {
 					taskid := u.String()
 					//临时任务id
 					log.Println(taskid)
-					property := "UrgentScan"
 					for _, ip := range urgentIPs {
 
 						ipRange := lib.Iptransfer(ip)
@@ -154,7 +146,7 @@ func main() {
 								Args:  []interface{}{string(ipRange), ordinaryScanRate, taskid},
 							},
 						},
-							true, taskid, property)
+							true)
 					}
 					lib.UpdateUrgentScanStatus()
 				} else {
