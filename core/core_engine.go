@@ -30,12 +30,12 @@ func CoreScanEngine(ip_range string, rate string, taskTime string) error {
 func CoreScanNmapEngine() {
 	count, err := lib.RedisDriver.LLen("masscan_result").Result()
 	if err != nil {
-		log.Println(lib.TimeToStr(time.Now().Unix()) + "redis查询失败")
+		log.Println("redis查询失败")
 	}
 	if count > 0 {
 		nmapTaskList, err := lib.RedisDriver.LRange("masscan_result", 0, -1).Result()
 		if err != nil {
-			log.Println(lib.TimeToStr(time.Now().Unix()) + "redis查询失败")
+			log.Println("redis查询失败")
 		}
 		for _, w := range nmapTaskList {
 			wList := strings.Split(w, "§§§§")

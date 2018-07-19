@@ -27,7 +27,7 @@ var (
 
 // 扫描
 func ScanMasscanTask(queue string, args ...interface{}) error {
-	log.Println(lib.TimeToStr(time.Now().Unix()) + "调用队列Masscan:" + queue)
+	log.Println("调用队列Masscan:" + queue)
 	ipRange := ""
 	rate := "20"
 	taskTime := "get_queue_error"
@@ -49,8 +49,9 @@ func ScanMasscanTask(queue string, args ...interface{}) error {
 }
 
 func ScanNmapTask(queue string, args ...interface{}) error {
-	log.Println(lib.TimeToStr(time.Now().Unix()) + "调用队列Nmap")
+	log.Println("调用队列Nmap")
 	core.CoreScanNmapEngine()
+	return nil
 }
 
 var (

@@ -34,7 +34,13 @@ func init() {
 	settings := goworker.WorkerSettings{
 		URI:            dsnAddr,
 		Connections:    100,
+		Queues:         []string{"ScanTaskQueue"},
+		UseNumber:      true,
+		ExitOnComplete: false,
+		Concurrency:    2,
 		Namespace:      "goskylar:",
+		Interval:       5.0,
+
 	}
 
 	goworker.SetSettings(settings)
