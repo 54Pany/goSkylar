@@ -63,23 +63,6 @@ func main() {
 	tickerUrgent := time.NewTicker(time.Minute * 1)
 	tickerNmapUrgent := time.NewTicker(time.Minute * 1)
 
-	// 首次运行
-	log.Println("开始例行扫描任务")
-
-	for _, ipRange := range ipRangeList {
-
-		log.Println("例行扫描Adding：" + ipRange)
-		goworker.Enqueue(&goworker.Job{
-			Queue: "ScanMasscanTaskQueue",
-			Payload: goworker.Payload{
-				Class: "ScanMasscanTask",
-				Args:  []interface{}{string(ipRange), ordinaryScanRate, "test111"},
-			},
-		},
-			true)
-	}
-
-
 	//例行扫描：非白名单IP，扫描rate：50000
 	go func() {
 		defer waitgroup.Done()
