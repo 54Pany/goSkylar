@@ -40,7 +40,6 @@ func init() {
 		Concurrency:    2,
 		Namespace:      "goskylar:",
 		Interval:       5.0,
-
 	}
 
 	goworker.SetSettings(settings)
@@ -62,6 +61,7 @@ func main() {
 	ticker := time.NewTicker(time.Hour * 7)
 	tickerWhite := time.NewTicker(time.Hour * 20)
 	tickerUrgent := time.NewTicker(time.Minute * 1)
+	tickerNmapUrgent := time.NewTicker(time.Minute * 1)
 
 	// 首次运行
 
@@ -85,7 +85,7 @@ func main() {
 					goworker.Enqueue(&goworker.Job{
 						Queue: "ScanTaskQueue",
 						Payload: goworker.Payload{
-							Class: "ScanTask",
+							Class: "ScanMasscanTask",
 							Args:  []interface{}{string(ipRange), ordinaryScanRate, taskid},
 						},
 					},
@@ -115,7 +115,7 @@ func main() {
 					goworker.Enqueue(&goworker.Job{
 						Queue: "ScanTaskQueue",
 						Payload: goworker.Payload{
-							Class: "ScanTask",
+							Class: "ScanMasscanTask",
 							Args:  []interface{}{string(ipRange), whitelistScanRate, taskid},
 						},
 					},
@@ -148,7 +148,7 @@ func main() {
 						goworker.Enqueue(&goworker.Job{
 							Queue: "ScanTaskQueue",
 							Payload: goworker.Payload{
-								Class: "ScanTask",
+								Class: "ScanMasscanTask",
 								Args:  []interface{}{string(ipRange), ordinaryScanRate, taskid},
 							},
 						},
@@ -157,6 +157,35 @@ func main() {
 					lib.UpdateUrgentScanStatus()
 				} else {
 					log.Println("无最新临时任务: " + lib.DateToStr(time.Now().Unix()))
+				}
+			}
+		}
+	}()
+
+	go func() {
+		for {
+			select {
+			case <-tickerNmapUrgent.C:
+				count, err := lib.RedisDriver.LLen("masscan_result").Result()
+				if err != nil {
+					log.Println("redis查询失败")
+				}
+				if count > 0 {
+					nmapTaskList, err := lib.RedisDriver.LRange("masscan_result", 0, -1).Result()
+					if err != nil {
+						log.Println("redis查询失败")
+					}
+					for _, w := range nmapTaskList {
+						goworker.Enqueue(&goworker.Job{
+							Queue: "ScanTaskQueue",
+							Payload: goworker.Payload{
+								Class: "ScanNmapTask",
+								Args:  []interface{}{w},
+							},
+						},
+							true)
+						
+					}
 				}
 			}
 		}

@@ -49,8 +49,10 @@ func ScanMasscanTask(queue string, args ...interface{}) error {
 }
 
 func ScanNmapTask(queue string, args ...interface{}) error {
-	log.Println("调用队列Nmap")
-	core.CoreScanNmapEngine()
+	log.Println("调用队列Nmap:" + queue)
+	if len(args) == 1 {
+		core.CoreScanNmapEngine(args[0].(string))
+	}
 	return nil
 }
 
