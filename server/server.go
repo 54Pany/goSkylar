@@ -34,7 +34,7 @@ func init() {
 	settings := goworker.WorkerSettings{
 		URI:            dsnAddr,
 		Connections:    100,
-		Queues:         []string{"ScanMasscanTaskQueue","ScanNmapTaskQueue"},
+		Queues:         []string{"ScanMasscanTaskQueue", "ScanNmapTaskQueue"},
 		UseNumber:      true,
 		ExitOnComplete: false,
 		Concurrency:    2,
@@ -62,6 +62,21 @@ func main() {
 	tickerWhite := time.NewTicker(time.Hour * 20)
 	tickerUrgent := time.NewTicker(time.Minute * 1)
 	tickerNmapUrgent := time.NewTicker(time.Minute * 1)
+
+	log.Println("开始例行扫描任务")
+
+	for _, ipRange := range ipRangeList {
+
+		log.Println("例行扫描Adding：" + ipRange)
+		goworker.Enqueue(&goworker.Job{
+			Queue: "ScanMasscanTaskQueue",
+			Payload: goworker.Payload{
+				Class: "ScanMasscanTask",
+				Args:  []interface{}{string(ipRange), ordinaryScanRate, "testXXXX"},
+			},
+		},
+			true)
+	}
 
 	//例行扫描：非白名单IP，扫描rate：50000
 	go func() {
@@ -163,19 +178,21 @@ func main() {
 		}
 	}()
 
+	//定时获取masscan扫描结果，给nmap集群进行扫描
 	go func() {
 		defer waitgroup.Done()
 		for {
 			select {
 			case <-tickerNmapUrgent.C:
-				count, err := lib.RedisDriver.LLen("masscan_result").Result()
+				count, err := lib.RedisOuterDriver.LLen("masscan_result").Result()
 				if err != nil {
-					log.Println("redis查询失败")
+					log.Println("redis LLen失败" + err.Error())
+					continue
 				}
 				if count > 0 {
-					nmapTaskList, err := lib.RedisDriver.LRange("masscan_result", 0, -1).Result()
+					nmapTaskList, err := lib.RedisOuterDriver.LRange("masscan_result", 0, -1).Result()
 					if err != nil {
-						log.Println("redis查询失败")
+						log.Println("redis LRange失败" + err.Error())
 					}
 					for _, w := range nmapTaskList {
 						goworker.Enqueue(&goworker.Job{

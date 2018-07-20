@@ -21,8 +21,8 @@ import (
 
 var (
 	RedisDriver *redis.Client
-	waitgroup   sync.WaitGroup
-	dsnAddr     string
+	Waitgroup   sync.WaitGroup
+	DsnAddr     string
 )
 
 // 扫描
@@ -43,15 +43,19 @@ func ScanMasscanTask(queue string, args ...interface{}) error {
 	}
 
 	log.Println(ipRange)
-	core.CoreScanEngine(ipRange, rate, taskTime)
+	err := core.CoreScanEngine(ipRange, rate, taskTime)
 	log.Println("From " + queue + " " + args[2].(string))
-	return nil
+	return err
 }
 
 func ScanNmapTask(queue string, args ...interface{}) error {
 	log.Println("调用队列Nmap:" + queue)
 	if len(args) == 1 {
-		core.CoreScanNmapEngine(args[0].(string))
+		err := core.CoreScanNmapEngine(args[0].(string))
+		if err != nil {
+			log.Println("CoreScanNmapEngine Error:" + err.Error())
+			return err
+		}
 	}
 	return nil
 }
@@ -172,13 +176,13 @@ func RestartProcess() {
 func init() {
 	RedisDriver = lib.RedisDriver
 
-	dsnAddr = lib.DsnAddr
+	DsnAddr = lib.DsnAddr
 
 	// 初始化
 	settings := goworker.WorkerSettings{
-		URI:            dsnAddr,
+		URI:            DsnAddr,
 		Connections:    100,
-		Queues:         []string{"ScanMasscanTaskQueue","ScanNmapTaskQueue"},
+		Queues:         []string{"ScanMasscanTaskQueue", "ScanNmapTaskQueue"},
 		UseNumber:      true,
 		ExitOnComplete: false,
 		Concurrency:    1,
@@ -204,10 +208,10 @@ func main() {
 
 	signals := make(chan string)
 
-	waitgroup.Add(2)
+	Waitgroup.Add(2)
 
 	go func() {
-		defer waitgroup.Done()
+		defer Waitgroup.Done()
 		for {
 			VersionValidate(signals, versionURL, DownloadURL, bakFile)
 			time.Sleep(1 * time.Minute)
@@ -215,7 +219,7 @@ func main() {
 	}()
 
 	go func() {
-		defer waitgroup.Done()
+		defer Waitgroup.Done()
 
 		if err := goworker.Work(); err != nil {
 			log.Println("Error:", err)
@@ -235,5 +239,5 @@ func main() {
 		}
 	}
 
-	waitgroup.Wait()
+	Waitgroup.Wait()
 }

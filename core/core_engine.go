@@ -21,12 +21,15 @@ func CoreScanEngine(ipRange string, rate string, taskTime string) error {
 	}
 	masscanResultStruct, err := RunMasscan(ipRange, rate)
 	for _, v := range masscanResultStruct {
-		lib.RedisDriver.RPush("masscan_result", v.IP+"§§§§"+strconv.Itoa(v.Port)+"§§§§"+selfIp)
+		err := lib.RedisDriver.RPush("masscan_result", v.IP+"§§§§"+strconv.Itoa(v.Port)+"§§§§"+selfIp).Err()
+		if err != nil {
+			log.Println("-----masscan_result push to redis error----" + err.Error())
+		}
 	}
 	return err
 }
 
-func CoreScanNmapEngine(masscanTask string) {
+func CoreScanNmapEngine(masscanTask string) error {
 	wList := strings.Split(masscanTask, "§§§§")
 	//判断数量匹配
 	if len(wList) == 3 {
@@ -34,9 +37,11 @@ func CoreScanNmapEngine(masscanTask string) {
 		for _, v := range engineResult {
 			log.Println("--------------")
 			log.Println(v)
-			lib.PushPortInfoToRedis(ScannerResultTransfer(v), "", wList[2])
+			err := lib.PushPortInfoToRedis(ScannerResultTransfer(v), "", wList[2])
+			return err
 		}
 	}
+	return nil
 }
 
 func RunMasscan(ip_range string, rate string) ([]masscan.MasscanResultStruct, error) {
