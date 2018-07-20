@@ -178,7 +178,7 @@ func init() {
 	settings := goworker.WorkerSettings{
 		URI:            dsnAddr,
 		Connections:    100,
-		Queues:         []string{"ScanTaskQueue"},
+		Queues:         []string{"ScanMasscanTaskQueue","ScanNmapTaskQueue"},
 		UseNumber:      true,
 		ExitOnComplete: false,
 		Concurrency:    1,

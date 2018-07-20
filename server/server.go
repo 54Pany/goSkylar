@@ -34,7 +34,7 @@ func init() {
 	settings := goworker.WorkerSettings{
 		URI:            dsnAddr,
 		Connections:    100,
-		Queues:         []string{"ScanTaskQueue"},
+		Queues:         []string{"ScanMasscanTaskQueue","ScanNmapTaskQueue"},
 		UseNumber:      true,
 		ExitOnComplete: false,
 		Concurrency:    2,
@@ -83,7 +83,7 @@ func main() {
 
 					log.Println("例行扫描Adding：" + ipRange)
 					goworker.Enqueue(&goworker.Job{
-						Queue: "ScanTaskQueue",
+						Queue: "ScanMasscanTaskQueue",
 						Payload: goworker.Payload{
 							Class: "ScanMasscanTask",
 							Args:  []interface{}{string(ipRange), ordinaryScanRate, taskid},
@@ -113,7 +113,7 @@ func main() {
 
 					log.Println("例行扫描Adding：" + ipRange)
 					goworker.Enqueue(&goworker.Job{
-						Queue: "ScanTaskQueue",
+						Queue: "ScanMasscanTaskQueue",
 						Payload: goworker.Payload{
 							Class: "ScanMasscanTask",
 							Args:  []interface{}{string(ipRange), whitelistScanRate, taskid},
@@ -146,7 +146,7 @@ func main() {
 
 						log.Println("临时扫描Adding：" + ipRange)
 						goworker.Enqueue(&goworker.Job{
-							Queue: "ScanTaskQueue",
+							Queue: "ScanMasscanTaskQueue",
 							Payload: goworker.Payload{
 								Class: "ScanMasscanTask",
 								Args:  []interface{}{string(ipRange), ordinaryScanRate, taskid},
@@ -177,14 +177,14 @@ func main() {
 					}
 					for _, w := range nmapTaskList {
 						goworker.Enqueue(&goworker.Job{
-							Queue: "ScanTaskQueue",
+							Queue: "ScanNmapTaskQueue",
 							Payload: goworker.Payload{
 								Class: "ScanNmapTask",
 								Args:  []interface{}{w},
 							},
 						},
 							true)
-						
+
 					}
 				}
 			}
