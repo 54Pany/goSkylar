@@ -65,17 +65,19 @@ func main() {
 
 	log.Println("开始例行扫描任务")
 
-	for _, ipRange := range ipRangeList {
+	for a := 1; a <= 65535; a++ {
+		for _, ipRange := range ipRangeList {
 
-		log.Println("例行扫描Adding：" + ipRange)
-		goworker.Enqueue(&goworker.Job{
-			Queue: "ScanMasscanTaskQueue",
-			Payload: goworker.Payload{
-				Class: "ScanMasscanTask",
-				Args:  []interface{}{string(ipRange), ordinaryScanRate, "testXXXX"},
+			log.Println("例行扫描Adding：" + ipRange)
+			goworker.Enqueue(&goworker.Job{
+				Queue: "ScanMasscanTaskQueue",
+				Payload: goworker.Payload{
+					Class: "ScanMasscanTask",
+					Args:  []interface{}{string(ipRange), ordinaryScanRate, "testXXXX", strconv.Itoa(a)},
+				},
 			},
-		},
-			true)
+				true)
+		}
 	}
 
 	//例行扫描：非白名单IP，扫描rate：50000
@@ -93,17 +95,19 @@ func main() {
 				log.Println(taskid)
 				log.Println("开始例行扫描任务")
 
-				for _, ipRange := range ipRangeList {
+				for a := 1; a <= 65535; a++ {
+					for _, ipRange := range ipRangeList {
 
-					log.Println("例行扫描Adding：" + ipRange)
-					goworker.Enqueue(&goworker.Job{
-						Queue: "ScanMasscanTaskQueue",
-						Payload: goworker.Payload{
-							Class: "ScanMasscanTask",
-							Args:  []interface{}{string(ipRange), ordinaryScanRate, taskid},
+						log.Println("例行扫描Adding：" + ipRange)
+						goworker.Enqueue(&goworker.Job{
+							Queue: "ScanMasscanTaskQueue",
+							Payload: goworker.Payload{
+								Class: "ScanMasscanTask",
+								Args:  []interface{}{string(ipRange), ordinaryScanRate, taskid, strconv.Itoa(a)},
+							},
 						},
-					},
-						true)
+							true)
+					}
 				}
 			}
 			log.Println("例行扫描任务加入结束")
@@ -124,17 +128,19 @@ func main() {
 				log.Println(taskid)
 				log.Println("开始例行白名单扫描任务")
 
-				for _, ipRange := range whiteIpsIprange {
+				for a := 1; a <= 65535; a++ {
+					for _, ipRange := range whiteIpsIprange {
 
-					log.Println("例行扫描Adding：" + ipRange)
-					goworker.Enqueue(&goworker.Job{
-						Queue: "ScanMasscanTaskQueue",
-						Payload: goworker.Payload{
-							Class: "ScanMasscanTask",
-							Args:  []interface{}{string(ipRange), whitelistScanRate, taskid},
+						log.Println("例行扫描Adding：" + ipRange)
+						goworker.Enqueue(&goworker.Job{
+							Queue: "ScanMasscanTaskQueue",
+							Payload: goworker.Payload{
+								Class: "ScanMasscanTask",
+								Args:  []interface{}{string(ipRange), whitelistScanRate, taskid, strconv.Itoa(a)},
+							},
 						},
-					},
-						true)
+							true)
+					}
 				}
 			}
 			log.Println("例行白名单扫描任务加入结束")

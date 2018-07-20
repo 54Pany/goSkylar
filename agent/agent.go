@@ -31,19 +31,18 @@ func ScanMasscanTask(queue string, args ...interface{}) error {
 	ipRange := ""
 	rate := "20"
 	taskTime := "get_queue_error"
-	if len(args) == 3 {
-		ipRange = args[0].(string)
-		rate = args[1].(string)
-		taskTime = args[2].(string)
-	} else if len(args) == 2 {
-		ipRange = args[0].(string)
-		rate = args[1].(string)
-	} else if len(args) == 1 {
-		ipRange = args[0].(string)
+	if len(args) != 4 {
+		log.Println("----ScanMasscanTask 参数个数错误-----")
+		return nil
 	}
 
+	ipRange = args[0].(string)
+	rate = args[1].(string)
+	taskTime = args[2].(string)
+	port := args[3].(string)
 	log.Println(ipRange)
-	err := core.CoreScanEngine(ipRange, rate, taskTime)
+	err := core.CoreScanEngine(ipRange, rate, taskTime, port)
+
 	log.Println("From " + queue + " " + args[2].(string))
 	return err
 }

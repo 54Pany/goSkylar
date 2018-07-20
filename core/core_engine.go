@@ -10,7 +10,7 @@ import (
 	"strings"
 )
 
-func CoreScanEngine(ipRange string, rate string, taskTime string) error {
+func CoreScanEngine(ipRange string, rate string, taskTime string, port string) error {
 	//lib.LogSetting()
 	selfIpList, err := net.IntranetIP()
 	selfIp := ""
@@ -19,7 +19,7 @@ func CoreScanEngine(ipRange string, rate string, taskTime string) error {
 	} else {
 		selfIp = selfIpList[0]
 	}
-	masscanResultStruct, err := RunMasscan(ipRange, rate)
+	masscanResultStruct, err := RunMasscan(ipRange, rate, port)
 	for _, v := range masscanResultStruct {
 		err := lib.RedisDriver.RPush("masscan_result", v.IP+"§§§§"+strconv.Itoa(v.Port)+"§§§§"+selfIp).Err()
 		if err != nil {
@@ -44,14 +44,14 @@ func CoreScanNmapEngine(masscanTask string) error {
 	return nil
 }
 
-func RunMasscan(ip_range string, rate string) ([]masscan.MasscanResultStruct, error) {
+func RunMasscan(ip_range string, rate string, port string) ([]masscan.MasscanResultStruct, error) {
 	m := masscan.New()
 	//
 	//// masscan可执行文件路径,默认不需要设置
 	//m.SetSystemPath("/usr/local/masscan/bin/masscan")
 
 	// 扫描端口范围
-	m.SetPorts("1-65535")
+	m.SetPorts(port)
 
 	//m.SetInclude("1.txt")
 
