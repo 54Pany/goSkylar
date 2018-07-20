@@ -57,16 +57,32 @@ func main() {
 	}
 
 	//aChan := make(chan int, 1)
-	waitgroup.Add(1)
+	waitgroup.Add(4)
 	ticker := time.NewTicker(time.Hour * 7)
 	tickerWhite := time.NewTicker(time.Hour * 20)
 	tickerUrgent := time.NewTicker(time.Minute * 1)
 	tickerNmapUrgent := time.NewTicker(time.Minute * 1)
 
 	// 首次运行
+	log.Println("开始例行扫描任务")
+
+	for _, ipRange := range ipRangeList {
+
+		log.Println("例行扫描Adding：" + ipRange)
+		goworker.Enqueue(&goworker.Job{
+			Queue: "ScanMasscanTaskQueue",
+			Payload: goworker.Payload{
+				Class: "ScanMasscanTask",
+				Args:  []interface{}{string(ipRange), ordinaryScanRate, "test111"},
+			},
+		},
+			true)
+	}
+
 
 	//例行扫描：非白名单IP，扫描rate：50000
 	go func() {
+		defer waitgroup.Done()
 		for {
 			select {
 			case <-ticker.C:
@@ -97,6 +113,7 @@ func main() {
 	}()
 	//例行扫描：白名单IP，扫描rate：20
 	go func() {
+		defer waitgroup.Done()
 		for {
 			select {
 			case <-tickerWhite.C:
@@ -127,6 +144,7 @@ func main() {
 	}()
 	//添加临时扫描任务
 	go func() {
+		defer waitgroup.Done()
 		for {
 			select {
 			case <-tickerUrgent.C:
@@ -163,6 +181,7 @@ func main() {
 	}()
 
 	go func() {
+		defer waitgroup.Done()
 		for {
 			select {
 			case <-tickerNmapUrgent.C:
