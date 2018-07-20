@@ -65,21 +65,6 @@ func main() {
 
 	log.Println("开始例行扫描任务")
 
-	for a := 1; a <= 65535; a++ {
-		for _, ipRange := range ipRangeList {
-
-			log.Println("例行扫描Adding：" + ipRange)
-			goworker.Enqueue(&goworker.Job{
-				Queue: "ScanMasscanTaskQueue",
-				Payload: goworker.Payload{
-					Class: "ScanMasscanTask",
-					Args:  []interface{}{string(ipRange), ordinaryScanRate, "testXXXX", strconv.Itoa(a)},
-				},
-			},
-				true)
-		}
-	}
-
 	//例行扫描：非白名单IP，扫描rate：50000
 	go func() {
 		defer waitgroup.Done()
@@ -95,18 +80,21 @@ func main() {
 				log.Println(taskid)
 				log.Println("开始例行扫描任务")
 
-				for a := 1; a <= 65535; a++ {
+				for port := 1; port <= 65535; port++ {
 					for _, ipRange := range ipRangeList {
 
 						log.Println("例行扫描Adding：" + ipRange)
-						goworker.Enqueue(&goworker.Job{
+						err := goworker.Enqueue(&goworker.Job{
 							Queue: "ScanMasscanTaskQueue",
 							Payload: goworker.Payload{
 								Class: "ScanMasscanTask",
-								Args:  []interface{}{string(ipRange), ordinaryScanRate, taskid, strconv.Itoa(a)},
+								Args:  []interface{}{string(ipRange), ordinaryScanRate, taskid, strconv.Itoa(port)},
 							},
 						},
 							true)
+						if err != nil {
+							log.Println("例行扫描goworker Enqueue时报错,ip段：" + ipRange + "，端口：" + strconv.Itoa(port))
+						}
 					}
 				}
 			}
@@ -128,18 +116,21 @@ func main() {
 				log.Println(taskid)
 				log.Println("开始例行白名单扫描任务")
 
-				for a := 1; a <= 65535; a++ {
+				for port := 1; port <= 65535; port++ {
 					for _, ipRange := range whiteIpsIprange {
 
 						log.Println("例行扫描Adding：" + ipRange)
-						goworker.Enqueue(&goworker.Job{
+						err := goworker.Enqueue(&goworker.Job{
 							Queue: "ScanMasscanTaskQueue",
 							Payload: goworker.Payload{
 								Class: "ScanMasscanTask",
-								Args:  []interface{}{string(ipRange), whitelistScanRate, taskid, strconv.Itoa(a)},
+								Args:  []interface{}{string(ipRange), whitelistScanRate, taskid, strconv.Itoa(port)},
 							},
 						},
 							true)
+						if err != nil {
+							log.Println("白名单扫描goworker Enqueue时报错,ip段：" + ipRange + "，端口：" + strconv.Itoa(port))
+						}
 					}
 				}
 			}
@@ -162,19 +153,24 @@ func main() {
 					taskid := u.String()
 					//临时任务id
 					log.Println(taskid)
-					for _, ip := range urgentIPs {
+					for port := 1; port <= 65535; port++ {
+						for _, ip := range urgentIPs {
 
-						ipRange := lib.Iptransfer(ip)
+							ipRange := lib.Iptransfer(ip)
 
-						log.Println("临时扫描Adding：" + ipRange)
-						goworker.Enqueue(&goworker.Job{
-							Queue: "ScanMasscanTaskQueue",
-							Payload: goworker.Payload{
-								Class: "ScanMasscanTask",
-								Args:  []interface{}{string(ipRange), ordinaryScanRate, taskid},
+							log.Println("临时扫描Adding：" + ipRange)
+							err := goworker.Enqueue(&goworker.Job{
+								Queue: "ScanMasscanTaskQueue",
+								Payload: goworker.Payload{
+									Class: "ScanMasscanTask",
+									Args:  []interface{}{string(ipRange), ordinaryScanRate, taskid, strconv.Itoa(port)},
+								},
 							},
-						},
-							true)
+								true)
+							if err != nil {
+								log.Println("临时扫描goworker Enqueue时报错,ip段：" + ipRange + "，端口：" + strconv.Itoa(port))
+							}
+						}
 					}
 					lib.UpdateUrgentScanStatus()
 				} else {
@@ -201,7 +197,7 @@ func main() {
 						log.Println("redis LRange失败" + err.Error())
 					}
 					for _, w := range nmapTaskList {
-						goworker.Enqueue(&goworker.Job{
+						err := goworker.Enqueue(&goworker.Job{
 							Queue: "ScanNmapTaskQueue",
 							Payload: goworker.Payload{
 								Class: "ScanNmapTask",
@@ -209,6 +205,9 @@ func main() {
 							},
 						},
 							true)
+						if err != nil {
+							log.Println("nmap 集群获取任务，goworker Enqueue时报错,具体信息：" + w)
+						}
 
 					}
 				}
