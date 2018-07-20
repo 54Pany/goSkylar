@@ -192,24 +192,30 @@ func main() {
 					continue
 				}
 				if count > 0 {
-					nmapTaskList, err := lib.RedisOuterDriver.LRange("masscan_result", 0, -1).Result()
-					if err != nil {
-						log.Println("redis LRange失败" + err.Error())
-					}
-					for _, w := range nmapTaskList {
-						err := goworker.Enqueue(&goworker.Job{
+					for {
+						nmapTask, err := lib.RedisOuterDriver.LPop("masscan_result").Result()
+
+						if err != nil {
+							log.Println("redis LPop失败" + err.Error())
+						}
+
+						if nmapTask == "" {
+							break
+						}
+
+						err = goworker.Enqueue(&goworker.Job{
 							Queue: "ScanNmapTaskQueue",
 							Payload: goworker.Payload{
 								Class: "ScanNmapTask",
-								Args:  []interface{}{w},
+								Args:  []interface{}{nmapTask},
 							},
 						},
 							true)
 						if err != nil {
 							log.Println("nmap 集群获取任务，goworker Enqueue时报错,具体信息：" + w)
 						}
-
 					}
+
 				}
 			}
 		}
