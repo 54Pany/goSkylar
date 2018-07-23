@@ -41,11 +41,14 @@ func RunMasscan(ipRange string, rate string, port string) ([]masscan.MasscanResu
 
 	for _, result := range results {
 		for _, v := range result.Ports {
-			var masscanResult masscan.MasscanResult
-			masscanResult.IP = result.Address.Addr
-			port, _ := strconv.Atoi(v.Portid)
-			masscanResult.Port = port
-			masscanResults = append(masscanResults, masscanResult)
+			port, err := strconv.Atoi(v.Portid)
+			if err != nil {
+				log.Println(err)
+			}
+			masscanResults = append(masscanResults, masscan.MasscanResult{
+				IP:   result.Address.Addr,
+				Port: port,
+			})
 		}
 	}
 
