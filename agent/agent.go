@@ -7,12 +7,11 @@ import (
 	"git.jd.com/wangshuo30/goworker"
 	"goSkylar/agent/conf"
 	"errors"
-	"strconv"
-
 	"github.com/toolkits/net"
 	"strings"
 	"goSkylar/agent/core"
 	"goSkylar/lib"
+	"fmt"
 )
 
 var (
@@ -43,7 +42,7 @@ func MasscanTask(queue string, args ...interface{}) error {
 	results, err := core.RunMasscan(ipRange, rate, port)
 
 	for _, v := range results {
-		err := lib.RedisDriver.RPush("masscan_result", v.IP+"§§§§"+strconv.Itoa(v.Port)+"§§§§"+selfIp).Err()
+		err := lib.RedisDriver.RPush("masscan_result", fmt.Sprintf("%s|%s|%s", v.IP, v.Port, selfIp)).Err()
 		if err != nil {
 			log.Println("-----masscan_result push to redis error----" + err.Error())
 		}
@@ -62,7 +61,7 @@ func NmapTask(queue string, args ...interface{}) error {
 	}
 
 	taskInfo := args[0].(string)
-	wList := strings.Split(taskInfo, "§§§§")
+	wList := strings.Split(taskInfo, "|")
 
 	//判断数量匹配
 	if len(wList) >= 2 {

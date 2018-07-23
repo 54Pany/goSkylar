@@ -61,7 +61,7 @@ type MasscanStruct struct {
 
 type MasscanResult struct {
 	IP   string `json:"ip"`
-	Port int    `json:"port"`
+	Port string `json:"port"`
 }
 
 func deleteFile(filePath string) error {

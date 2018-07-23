@@ -18,7 +18,7 @@ type Nmap struct {
 	Result        []byte
 }
 
-type NmapResultStruct struct {
+type NmapResult struct {
 	Ip       string
 	PortId   int
 	Protocol string
@@ -102,9 +102,12 @@ func (m *Nmap) Run() error {
 }
 
 // Parse scans result.
-func (m *Nmap) Parse() ([]NmapResultStruct, error) {
-	var nmapResultStructList []NmapResultStruct
+func (m *Nmap) Parse() ([]NmapResult, error) {
+
+	var nmapResults []NmapResult
+
 	log.Println("-----Nmap------")
+
 	x, err := nmap.Parse(m.Result)
 	if err != nil {
 		return nil, err
@@ -133,19 +136,19 @@ func (m *Nmap) Parse() ([]NmapResultStruct, error) {
 
 			}
 			if len(PortList) != 0 {
-				var nmapResultStruct NmapResultStruct
-				nmapResultStruct.Ip = IP
-				for _, v := range PortList {
-					nmapResultStruct.Service = v.Service
-					nmapResultStruct.PortId = v.PortId
-					nmapResultStruct.Protocol = v.Protocol
-					nmapResultStructList = append(nmapResultStructList, nmapResultStruct)
-				}
 
+				for _, v := range PortList {
+					nmapResults = append(nmapResults, NmapResult{
+						Ip: IP,
+						Service:v.Service,
+						PortId:v.PortId,
+						Protocol:v.Protocol,
+					})
+				}
 			}
 		}
 	}
-	return nmapResultStructList, err
+	return nmapResults, err
 }
 
 func New() *Nmap {

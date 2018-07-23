@@ -2,9 +2,9 @@ package core
 
 import (
 	"log"
-	"strconv"
 	"goSkylar/lib/masscan"
 	"goSkylar/lib/nmap"
+	"fmt"
 )
 
 func RunMasscan(ipRange string, rate string, port string) ([]masscan.MasscanResult, error) {
@@ -41,13 +41,9 @@ func RunMasscan(ipRange string, rate string, port string) ([]masscan.MasscanResu
 
 	for _, result := range results {
 		for _, v := range result.Ports {
-			port, err := strconv.Atoi(v.Portid)
-			if err != nil {
-				log.Println(err)
-			}
 			masscanResults = append(masscanResults, masscan.MasscanResult{
 				IP:   result.Address.Addr,
-				Port: port,
+				Port: v.Portid,
 			})
 		}
 	}
@@ -55,7 +51,7 @@ func RunMasscan(ipRange string, rate string, port string) ([]masscan.MasscanResu
 	return masscanResults, err
 }
 
-func RunNmap(ip string, port string) ([]nmap.NmapResultStruct, error) {
+func RunNmap(ip string, port string) ([]nmap.NmapResult, error) {
 	m := nmap.New()
 	m.SetIP(ip)
 	m.SetHostTimeOut("1800000ms")
@@ -70,6 +66,6 @@ func RunNmap(ip string, port string) ([]nmap.NmapResultStruct, error) {
 	return results, err
 }
 
-func ScannerResultTransfer(resultStruct nmap.NmapResultStruct) string {
-	return resultStruct.Ip + "§§§§" + strconv.Itoa(resultStruct.PortId) + "§§§§" + resultStruct.Protocol + "§§§§" + resultStruct.Service
+func ScannerResultTransfer(result nmap.NmapResult) string {
+	return fmt.Sprintf("%s|%s|%s|%s", result.Ip, result.PortId, result.Protocol, result.Service)
 }
