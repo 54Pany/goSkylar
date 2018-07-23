@@ -66,6 +66,3 @@ func RunNmap(ip string, port string) ([]nmap.NmapResult, error) {
 	return results, err
 }
 
-func ScannerResultTransfer(result nmap.NmapResult) string {
-	return fmt.Sprintf("%s|%s|%s|%s", result.Ip, result.PortId, result.Protocol, result.Service)
-}

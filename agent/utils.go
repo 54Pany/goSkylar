@@ -112,7 +112,7 @@ func VersionValidate(c chan string, versionURL string,
 
 	newVersion := resp.String()
 
-	if version != newVersion {
+	if Version != newVersion {
 
 		t := strconv.FormatInt(time.Now().Unix(), 10)
 		timestampStr := lib.InterfaceToStr(t)
@@ -140,6 +140,6 @@ func VersionValidate(c chan string, versionURL string,
 		return false
 	}
 
-	log.Println("-----Version:当前版本已是最新-----版本号：" + version)
+	log.Println("-----Version:当前版本已是最新-----版本号：" + Version)
 	return false
 }

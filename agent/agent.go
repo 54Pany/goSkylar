@@ -12,11 +12,37 @@ import (
 	"goSkylar/agent/core"
 	"goSkylar/lib"
 	"fmt"
+	"goSkylar/lib/redispool"
+	"net/url"
+	"github.com/garyburd/redigo/redis"
 )
 
 var (
-	version = "1.0.12"
+	Version   = "1.0.12"
+	RedisPool *redis.Pool
 )
+
+func init() {
+	u, err := url.Parse(conf.REDIS_URI)
+	if err != nil {
+		panic(err)
+	}
+
+	redisAddr := u.Host
+	redisPass, ok := u.User.Password()
+	if !ok {
+		redisPass = ""
+	}
+	redisDB := strings.Trim(u.Path, "/")
+	RedisPool = redispool.NewRedisPool(redispool.Options{
+		RedisAddr:        redisAddr,         //redis链接地址
+		RedisPass:        redisPass,         //redis认证密码
+		RedisDB:          redisDB,           //redis数据库
+		RedisMaxActive:   500,               // 最大的激活连接数，表示同时最多有N个连接
+		RedisMaxIdle:     100,               //最大的空闲连接数，表示即使没有redis连接时依然可以保持N个空闲的连接，而不被清除，随时处于待命状态
+		RedisIdleTimeout: 180 * time.Second, // 最大的空闲连接等待时间，超过此时间后，空闲连接将被关闭
+	})
+}
 
 func MasscanTask(queue string, args ...interface{}) error {
 	log.Println("调用队列Masscan:" + queue)
@@ -40,9 +66,20 @@ func MasscanTask(queue string, args ...interface{}) error {
 	}
 
 	results, err := core.RunMasscan(ipRange, rate, port)
+	if err != nil{
+		return  err
+	}
 
+	if len(results) == 0{
+		return nil
+	}
+
+	conn := RedisPool.Get()
+	defer conn.Close()
 	for _, v := range results {
-		err := lib.RedisDriver.RPush("masscan_result", fmt.Sprintf("%s|%s|%s", v.IP, v.Port, selfIp)).Err()
+		val := fmt.Sprintf("%s|%s|%s", v.IP, v.Port, selfIp)
+		log.Println("Insert a scan result of masscan to redis:" + val)
+		_, err := conn.Do("RPUSH", "masscan_result", val )
 		if err != nil {
 			log.Println("-----masscan_result push to redis error----" + err.Error())
 		}
@@ -63,6 +100,9 @@ func NmapTask(queue string, args ...interface{}) error {
 	taskInfo := args[0].(string)
 	wList := strings.Split(taskInfo, "|")
 
+	conn := RedisPool.Get()
+	defer conn.Close()
+
 	//判断数量匹配
 	if len(wList) >= 2 {
 		machineIp := ""
@@ -72,9 +112,12 @@ func NmapTask(queue string, args ...interface{}) error {
 
 		results, _ := core.RunNmap(wList[0], wList[1])
 		for _, v := range results {
-			log.Println(v)
-			err := lib.PushPortInfoToRedis(core.ScannerResultTransfer(v), "", machineIp)
-			return err
+			val := fmt.Sprintf("%s|%s|%s|%s|%s", v.Ip, v.PortId, v.Protocol, v.Service, machineIp)
+			log.Println("Insert a scan result of nmap to redis:" + val)
+			_, err := conn.Do("RPUSH", "portinfo", val )
+			if err != nil {
+				log.Println("----- portinfo push to redis error----" + err.Error())
+			}
 		}
 	}
 
