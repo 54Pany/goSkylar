@@ -28,6 +28,7 @@ func ScanMasscanTask(queue string, args ...interface{}) error {
 	taskTime := "get_queue_error"
 	if len(args) != 4 {
 		log.Println("----ScanMasscanTask 参数个数错误-----")
+		log.Println(args)
 		return nil
 	}
 
@@ -189,7 +190,7 @@ func init() {
 }
 
 func main() {
-	lib.LogSetting()
+	//lib.LogSetting()
 
 	cfg := lib.NewConfigUtil("")
 	versionURL, err := cfg.GetString("web_default", "version_url")

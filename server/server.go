@@ -12,14 +12,10 @@ import (
 )
 
 var (
-	OuterRedisDriver  *redis.Client
-	ordinaryScanRate  string
+	OuterRedisDriver *redis.Client
 )
 
 func init() {
-	var cfg = lib.NewConfigUtil("")
-
-	ordinaryScanRate, _ = cfg.GetString("masscan_rate", "ordinary_scan_rate")
 
 	OuterRedisDriver = lib.RedisOuterDriver
 	dsnAddr := lib.DsnOuterAddr
@@ -42,9 +38,16 @@ func init() {
 func main() {
 	lib.LogSetting()
 	var whiteIpsIprange []string
+	var cfg = lib.NewConfigUtil("")
 	ipRangeList, whiteIps, _ := lib.FindInitIpRanges()
 	log.Println("例行IP段数量:" + strconv.Itoa(len(ipRangeList)))
 	log.Println(OuterRedisDriver.Ping())
+	OrdinaryScanRate, err := cfg.GetString("masscan_rate", "ordinary_scan_rate")
+
+	if err != nil {
+		log.Println("---Error:Config.ini 获取配置文件version_url失败------")
+		panic(err)
+	}
 
 	for _, v := range whiteIps {
 		whiteIpsIprange = append(whiteIpsIprange, lib.Iptransfer(v))
@@ -55,7 +58,27 @@ func main() {
 	//获取Masscan扫描结果，每1分钟监听一次
 	tickerNmapUrgent := time.NewTicker(time.Minute * 1)
 
-	log.Println("开始例行扫描任务")
+	log.Println("直接测试1")
+
+	for port := 0; port <= 65535; port++ {
+		for _, ipRange := range ipRangeList {
+
+			log.Println("例行扫描Adding：" + ipRange)
+			err := goworker.Enqueue(&goworker.Job{
+				Queue: "ScanMasscanTaskQueue",
+				Payload: goworker.Payload{
+					Class: "ScanMasscanTask",
+					Args:  []interface{}{string(ipRange), OrdinaryScanRate, "taskidxxxxxx", strconv.Itoa(port)},
+				},
+			},
+				false)
+			if err != nil {
+				log.Println("例行扫描goworker Enqueue时报错,ip段：" + ipRange + "，端口：" + strconv.Itoa(port))
+			}
+		}
+	}
+
+	log.Println("直接测试，数据插入完毕")
 
 	//例行扫描：非白名单IP，扫描rate：50000
 	go func() {
@@ -79,7 +102,7 @@ func main() {
 							Queue: "ScanMasscanTaskQueue",
 							Payload: goworker.Payload{
 								Class: "ScanMasscanTask",
-								Args:  []interface{}{string(ipRange), ordinaryScanRate, taskid, strconv.Itoa(port)},
+								Args:  []interface{}{string(ipRange), OrdinaryScanRate, taskid, strconv.Itoa(port)},
 							},
 						},
 							false)
