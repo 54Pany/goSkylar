@@ -9,7 +9,7 @@ import (
 
 	"github.com/go-redis/redis"
 	"github.com/satori/go.uuid"
-	"goworker"
+	"goSkylar/goworker"
 )
 
 var (
