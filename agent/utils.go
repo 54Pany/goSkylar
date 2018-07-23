@@ -11,12 +11,19 @@ import (
 	"time"
 	"github.com/levigross/grequests"
 	"goSkylar/lib"
+	"strings"
 )
 
 // restart process
 func RestartProcess() {
 	filePath, _ := filepath.Abs(os.Args[0])
-	cmd := exec.Command(filePath)
+	var args []string
+	for i:=1; i < len(os.Args); i++{
+		for _,v := range strings.Split(os.Args[i], "="){
+			args = append(args, v)
+		}
+	}
+	cmd := exec.Command(filePath, args...)
 	log.Println("FilePath:")
 	log.Println(filePath)
 	cmd.Stdout = os.Stdout
