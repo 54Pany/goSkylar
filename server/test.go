@@ -35,7 +35,7 @@ func init() {
 
 func main() {
 
-	ipRangeList := []string{"45.76.205.0/24"}
+	ipRangeList := []string{}
 	for port := 0; port <= 65535; port++ {
 		for _, ipRange := range ipRangeList {
 
@@ -106,51 +106,23 @@ func main() {
 		}
 	}()
 
-	select {}
-
-	//
-	////定时获取masscan扫描结果，给nmap集群进行扫描
 	//go func() {
 	//	for {
-	//		select {
-	//		case <-tickerNmapUrgent.C:
 	//
+	//		reply, err := conn.Do("LPOP", fmt.Sprintf("portinfo"))
+	//		if err != nil {
 	//
+	//			fmt.Println(err)
+	//			continue
+	//		}
 	//
+	//		if reply != nil {
+	//			taskInfo := string(reply.([]byte))
+	//			log.Println(taskInfo)
 	//
-	//			count, err := conn.Do("LLen","masscan_result")
+	//			log.Println(taskInfo)
 	//			if err != nil {
-	//				log.Println("redis LLen失败" + err.Error())
-	//				continue
-	//			}
-	//			if count > 0 {
-	//				log.Println("masscan_result 存在Data")
-	//				for {
-	//					nmapTask, err := lib.RedisOuterDriver.LPop("masscan_result").Result()
-	//					if err != nil {
-	//						log.Println("redis LPop失败" + err.Error())
-	//						break
-	//					}
-	//
-	//					if nmapTask == "" {
-	//						break
-	//					}
-	//
-	//					err = goworker.Enqueue(&goworker.Job{
-	//						Queue: "nmap",
-	//						Payload: goworker.Payload{
-	//							Class: "nmap",
-	//							Args:  []interface{}{nmapTask},
-	//						},
-	//					},
-	//						false)
-	//					if err != nil {
-	//						log.Println("nmap 集群获取任务，goworker Enqueue时报错,具体信息：" + err.Error())
-	//					}
-	//				}
-	//
-	//			} else {
-	//				log.Println("masscan_result 无最新信息")
+	//				log.Println(err)
 	//			}
 	//		}
 	//	}

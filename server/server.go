@@ -1,71 +1,28 @@
 package main
 
 import (
-	"goSkylar/lib"
-	"log"
 	"strconv"
 	"time"
 
-	"github.com/go-redis/redis"
+	"net/url"
+	"goSkylar/server/conf"
+	"strings"
+	"github.com/garyburd/redigo/redis"
+	"goSkylar/lib/redispool"
+	"goSkylar/server/lib"
+	"log"
 	"github.com/satori/go.uuid"
 	"git.jd.com/wangshuo30/goworker"
-	"net/url"
-	"goSkylar/agent/conf"
-	"strings"
-	"goSkylar/lib/redispool"
+	"fmt"
+
+	"goSkylar/server/data"
 )
 
 var (
-	OuterRedisDriver *redis.Client
+	RedisPool *redis.Pool
 )
 
 func init() {
-
-	OuterRedisDriver = lib.RedisOuterDriver
-	dsnAddr := lib.DsnOuterAddr
-
-	// 初始化
-	settings := goworker.WorkerSettings{
-		URI:            dsnAddr,
-		Connections:    100,
-		Queues:         []string{"masscan", "nmap"},
-		UseNumber:      true,
-		ExitOnComplete: false,
-		Concurrency:    2,
-		Namespace:      "goskylar:",
-		Interval:       5.0,
-	}
-
-	goworker.SetSettings(settings)
-}
-
-func main() {
-	lib.LogSetting()
-	var whiteIpsIprange []string
-	var cfg = lib.NewConfigUtil("")
-
-	// TODO BUG
-	ipRangeList, whiteIps, _ := lib.FindInitIpRanges()
-	log.Println("例行IP段数量:" + strconv.Itoa(len(ipRangeList)))
-	log.Println(OuterRedisDriver.Ping())
-	OrdinaryScanRate, err := cfg.GetString("masscan_rate", "ordinary_scan_rate")
-
-	if err != nil {
-		log.Println("---Error:Config.ini 获取配置文件version_url失败------")
-		panic(err)
-	}
-
-	for _, v := range whiteIps {
-		whiteIpsIprange = append(whiteIpsIprange, lib.Iptransfer(v))
-	}
-
-	//例行任务，每7小时一次
-	tickerLib := time.NewTicker(time.Hour * 24)
-	//例行任务，每7小时一次
-	ticker := time.NewTicker(time.Hour * 7)
-	//获取Masscan扫描结果，每1分钟监听一次
-	tickerNmapUrgent := time.NewTicker(time.Minute * 1)
-
 	u, err := url.Parse(conf.REDIS_URI)
 	if err != nil {
 		panic(err)
@@ -77,7 +34,7 @@ func main() {
 		redisPass = ""
 	}
 	redisDB := strings.Trim(u.Path, "/")
-	RedisPool := redispool.NewRedisPool(redispool.Options{
+	RedisPool = redispool.NewRedisPool(redispool.Options{
 		RedisAddr:        redisAddr,         //redis链接地址
 		RedisPass:        redisPass,         //redis认证密码
 		RedisDB:          redisDB,           //redis数据库
@@ -85,10 +42,29 @@ func main() {
 		RedisMaxIdle:     100,               //最大的空闲连接数，表示即使没有redis连接时依然可以保持N个空闲的连接，而不被清除，随时处于待命状态
 		RedisIdleTimeout: 180 * time.Second, // 最大的空闲连接等待时间，超过此时间后，空闲连接将被关闭
 	})
+}
+
+func main() {
+	var whiteIpsIprange []string
+
+	// TODO BUG
+	ipRangeList, whiteIps, _ := lib.FindInitIpRanges()
+	log.Println("例行IP段数量:" + strconv.Itoa(len(ipRangeList)))
+	OrdinaryScanRate := conf.ORDINARY_SCAN_RATE
+
+	for _, v := range whiteIps {
+		whiteIpsIprange = append(whiteIpsIprange, lib.Iptransfer(v))
+	}
+
+	//例行任务，每7小时一次
+	tickerLib := time.NewTicker(time.Hour * 24)
+	//例行任务，每7小时一次
+	ticker := time.NewTicker(time.Hour * 7)
+	//临时任务，每分钟监听
+	tickerUrgent := time.NewTicker(time.Minute * 1)
 
 	conn := RedisPool.Get()
 	defer conn.Close()
-
 
 	//例行扫描：非白名单IP，扫描rate：50000
 	go func() {
@@ -125,88 +101,74 @@ func main() {
 		}
 	}()
 
-	//例行扫描：白名单IP，扫描rate：20
-
 	//添加临时扫描任务
-	//go func() {
-	//	for {
-	//		select {
-	//		case <-tickerUrgent.C:
-	//			log.Println("ticked at: " + lib.DateToStr(time.Now().Unix()))
-	//			urgentIPs := lib.FindUrgentIP()
-	//			if len(urgentIPs) > 0 {
-	//				u, err := uuid.NewV4()
-	//				if err != nil {
-	//					log.Println(err)
-	//				}
-	//				taskid := u.String()
-	//				//临时任务id
-	//				log.Println(taskid)
-	//				for port := 1; port <= 65535; port++ {
-	//					for _, ip := range urgentIPs {
-	//
-	//						ipRange := lib.Iptransfer(ip)
-	//
-	//						log.Println("临时扫描Adding：" + ipRange)
-	//						err := goworker.Enqueue(&goworker.Job{
-	//							Queue: "ScanMasscanTaskQueue",
-	//							Payload: goworker.Payload{
-	//								Class: "ScanMasscanTask",
-	//								Args:  []interface{}{string(ipRange), ordinaryScanRate, taskid, strconv.Itoa(port)},
-	//							},
-	//						},
-	//							true)
-	//						if err != nil {
-	//							log.Println("临时扫描goworker Enqueue时报错,ip段：" + ipRange + "，端口：" + strconv.Itoa(port))
-	//						}
-	//					}
-	//				}
-	//				lib.UpdateUrgentScanStatus()
-	//			} else {
-	//				log.Println("无最新临时任务: " + lib.DateToStr(time.Now().Unix()))
-	//			}
-	//		}
-	//	}
-	//}()
-
-	//定时获取masscan扫描结果，给nmap集群进行扫描
 	go func() {
 		for {
 			select {
-			case <-tickerNmapUrgent.C:
-				count, err := lib.RedisOuterDriver.LLen("masscan_result").Result()
-				if err != nil {
-					log.Println("redis LLen失败" + err.Error())
-					continue
-				}
-				if count > 0 {
-					log.Println("masscan_result 存在Data")
-					for {
-						nmapTask, err := lib.RedisOuterDriver.LPop("masscan_result").Result()
-						if err != nil {
-							log.Println("redis LPop失败" + err.Error())
-							break
-						}
+			case <-tickerUrgent.C:
+				log.Println("ticked at: " + lib.DateToStr(time.Now().Unix()))
+				urgentIPs := lib.FindUrgentIP()
+				if len(urgentIPs) > 0 {
+					u, err := uuid.NewV4()
+					if err != nil {
+						log.Println(err)
+					}
+					taskid := u.String()
+					//临时任务id
+					log.Println(taskid)
+					for port := 1; port <= 65535; port++ {
+						for _, ip := range urgentIPs {
 
-						if nmapTask == "" {
-							break
-						}
+							ipRange := lib.Iptransfer(ip)
 
-						err = goworker.Enqueue(&goworker.Job{
-							Queue: "nmap",
-							Payload: goworker.Payload{
-								Class: "nmap",
-								Args:  []interface{}{nmapTask},
+							log.Println("临时扫描Adding：" + ipRange)
+							err := goworker.Enqueue(&goworker.Job{
+								Queue: "ScanMasscanTaskQueue",
+								Payload: goworker.Payload{
+									Class: "ScanMasscanTask",
+									Args:  []interface{}{string(ipRange), "50000", taskid, strconv.Itoa(port)},
+								},
 							},
-						},
-							false)
-						if err != nil {
-							log.Println("nmap 集群获取任务，goworker Enqueue时报错,具体信息：" + err.Error())
+								true)
+							if err != nil {
+								log.Println("临时扫描goworker Enqueue时报错,ip段：" + ipRange + "，端口：" + strconv.Itoa(port))
+							}
 						}
 					}
-
+					lib.UpdateUrgentScanStatus()
 				} else {
-					log.Println("masscan_result 无最新信息")
+					log.Println("无最新临时任务: " + lib.DateToStr(time.Now().Unix()))
+				}
+			}
+		}
+	}()
+
+	//定时获取masscan扫描结果，给nmap集群进行扫描
+
+	go func() {
+		for {
+
+			reply, err := conn.Do("LPOP", fmt.Sprintf("masscan_result"))
+			if err != nil {
+
+				fmt.Println(err)
+				continue
+			}
+
+			if reply != nil {
+				taskInfo := string(reply.([]byte))
+				err := goworker.Enqueue(&goworker.Job{
+					Queue: "nmap",
+					Payload: goworker.Payload{
+						Class: "nmap",
+						Args:  []interface{}{taskInfo},
+					},
+				},
+					false)
+
+				log.Println(taskInfo)
+				if err != nil {
+					log.Println(err)
 				}
 			}
 		}
@@ -218,6 +180,32 @@ func main() {
 			case <-tickerLib.C:
 				ipRangeList, whiteIps, _ = lib.FindInitIpRanges()
 				log.Println("更新数据库ip段")
+			}
+		}
+	}()
+
+
+	connPortInfo := RedisPool.Get()
+	defer connPortInfo.Close()
+
+	go func() {
+		for {
+
+			reply, err := connPortInfo.Do("LPOP", fmt.Sprintf("portinfo"))
+			if err != nil {
+
+				log.Println(err)
+				continue
+			}
+
+			if reply != nil {
+				taskInfo := string(reply.([]byte))
+				data.NmapResultToMongo(taskInfo)
+
+				log.Println(taskInfo)
+				if err != nil {
+					log.Println(err)
+				}
 			}
 		}
 	}()
