@@ -12,14 +12,16 @@ import (
 	"github.com/levigross/grequests"
 	"goSkylar/lib"
 	"strings"
+	"fmt"
+	"github.com/onsi/ginkgo/config"
 )
 
 // restart process
 func RestartProcess() {
 	filePath, _ := filepath.Abs(os.Args[0])
 	var args []string
-	for i:=1; i < len(os.Args); i++{
-		for _,v := range strings.Split(os.Args[i], "="){
+	for i := 1; i < len(os.Args); i++ {
+		for _, v := range strings.Split(os.Args[i], "=") {
 			args = append(args, v)
 		}
 	}
@@ -35,20 +37,21 @@ func RestartProcess() {
 }
 
 // downlaod new agent
-func DownloadNewAgent(url, bakFile string) (bool, error) {
+func DownloadNewAgent(url, bakPath string) (bool, error) {
 
 	res, err := http.Get(url)
 	if err != nil {
 		return false, err
 	}
 
-	existPath, err := PathExists(bakFile)
+	bakPath = fmt.Sprintf("%s/%s/", bakPath, config.VERSION)
+	existPath, err := PathExists(bakPath)
 	if err != nil {
 		log.Println("get dir error:" + err.Error())
 		return false, err
 	}
 	if existPath == false {
-		err := os.Mkdir(bakFile, os.ModePerm)
+		err := os.Mkdir(bakPath, os.ModePerm)
 		if err != nil {
 			log.Printf("mkdir bak_file failed:" + err.Error())
 			return false, err
@@ -56,7 +59,7 @@ func DownloadNewAgent(url, bakFile string) (bool, error) {
 	}
 
 	fileName := "agent"
-	cmd := exec.Command("cp", fileName, bakFile+fileName+"."+version)
+	cmd := exec.Command("cp", fileName, bakPath)
 	cmd.Run()
 
 	cmd = exec.Command("rm", "-rf", fileName)
@@ -74,12 +77,12 @@ func DownloadNewAgent(url, bakFile string) (bool, error) {
 	}
 
 	log.Println("-----新版本下载成功-------")
-
 	cmd = exec.Command("chmod", "+x", fileName)
 	cmd.Run()
 
 	res.Body.Close()
 	f.Close()
+
 	return true, er
 }
 
@@ -108,7 +111,9 @@ func VersionValidate(c chan string, versionURL string,
 	}
 
 	newVersion := resp.String()
+
 	if version != newVersion {
+
 		t := strconv.FormatInt(time.Now().Unix(), 10)
 		timestampStr := lib.InterfaceToStr(t)
 		authkey := "gPv94qxP"
@@ -116,15 +121,25 @@ func VersionValidate(c chan string, versionURL string,
 
 		downloadURL := linuxDownloadURL + "?timestamp=" + timestampStr + "&sign=" + sign
 		log.Println(downloadURL)
-		download, _ := DownloadNewAgent(downloadURL, bakFile)
+
+		// 下载远程新版本文件
+		download, err := DownloadNewAgent(downloadURL, bakFile)
+		if err != nil {
+			log.Println("Validate version error: Unable to make request " + err.Error())
+			return false
+		}
+
 		if download == true {
 			c <- "new"
-			log.Println("-----发现新版本-------" + newVersion)
+			log.Println("-----升级成功,等待重启-------" + newVersion)
 			return true
 		}
+
 		c <- "old"
+
 		return false
 	}
+
 	log.Println("-----Version:当前版本已是最新-----版本号：" + version)
 	return false
 }
