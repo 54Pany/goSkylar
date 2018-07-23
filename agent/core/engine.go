@@ -4,7 +4,6 @@ import (
 	"log"
 	"goSkylar/lib/masscan"
 	"goSkylar/lib/nmap"
-	"fmt"
 )
 
 func RunMasscan(ipRange string, rate string, port string) ([]masscan.MasscanResult, error) {
@@ -65,4 +64,3 @@ func RunNmap(ip string, port string) ([]nmap.NmapResult, error) {
 	results, err := m.Parse()
 	return results, err
 }
-

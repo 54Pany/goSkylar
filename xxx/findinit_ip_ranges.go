@@ -1,4 +1,4 @@
-package lib
+package xxx
 
 import (
 	"gopkg.in/mgo.v2/bson"

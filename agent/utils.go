@@ -10,10 +10,10 @@ import (
 	"strconv"
 	"time"
 	"github.com/levigross/grequests"
-	"goSkylar/lib"
 	"strings"
 	"fmt"
 	"github.com/onsi/ginkgo/config"
+	"goSkylar/agent/conf"
 )
 
 // restart process
@@ -27,12 +27,14 @@ func RestartProcess() {
 	}
 	cmd := exec.Command(filePath, args...)
 	log.Println("FilePath:")
-	log.Println(filePath)
+    log.Println(filePath, strings.Join(args, " "))
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	err := cmd.Start()
 	if err != nil {
 		log.Fatalf("GracefulRestart: Failed to launch, error: %v", err)
+	}else{
+		os.Exit(0)
 	}
 }
 
@@ -44,7 +46,7 @@ func DownloadNewAgent(url, bakPath string) (bool, error) {
 		return false, err
 	}
 
-	bakPath = fmt.Sprintf("%s/%s/", bakPath, config.VERSION)
+	bakPath = fmt.Sprintf("%s/goskylar_%s/", bakPath, config.VERSION)
 	existPath, err := PathExists(bakPath)
 	if err != nil {
 		log.Println("get dir error:" + err.Error())
@@ -112,12 +114,15 @@ func VersionValidate(c chan string, versionURL string,
 
 	newVersion := resp.String()
 
-	if Version != newVersion {
+	if conf.CURR_VERSION != newVersion {
+
+		log.Println("最新版本:" + newVersion)
+		log.Println("当前版本:" + conf.CURR_VERSION)
 
 		t := strconv.FormatInt(time.Now().Unix(), 10)
-		timestampStr := lib.InterfaceToStr(t)
+		timestampStr := InterfaceToStr(t)
 		authkey := "gPv94qxP"
-		sign := lib.Md5Str(timestampStr + authkey)
+		sign := Md5Str(timestampStr + authkey)
 
 		downloadURL := linuxDownloadURL + "?timestamp=" + timestampStr + "&sign=" + sign
 		log.Println(downloadURL)
@@ -140,6 +145,6 @@ func VersionValidate(c chan string, versionURL string,
 		return false
 	}
 
-	log.Println("-----Version:当前版本已是最新-----版本号：" + Version)
+	log.Println("-----Version:当前版本已是最新-----版本号：" + conf.CURR_VERSION)
 	return false
 }

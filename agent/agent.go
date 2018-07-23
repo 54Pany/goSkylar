@@ -10,7 +10,6 @@ import (
 	"github.com/toolkits/net"
 	"strings"
 	"goSkylar/agent/core"
-	"goSkylar/lib"
 	"fmt"
 	"goSkylar/lib/redispool"
 	"net/url"
@@ -18,7 +17,6 @@ import (
 )
 
 var (
-	Version   = "1.0.12"
 	RedisPool *redis.Pool
 )
 
@@ -66,11 +64,11 @@ func MasscanTask(queue string, args ...interface{}) error {
 	}
 
 	results, err := core.RunMasscan(ipRange, rate, port)
-	if err != nil{
-		return  err
+	if err != nil {
+		return err
 	}
 
-	if len(results) == 0{
+	if len(results) == 0 {
 		return nil
 	}
 
@@ -79,7 +77,7 @@ func MasscanTask(queue string, args ...interface{}) error {
 	for _, v := range results {
 		val := fmt.Sprintf("%s|%s|%s", v.IP, v.Port, selfIp)
 		log.Println("Insert a scan result of masscan to redis:" + val)
-		_, err := conn.Do("RPUSH", "masscan_result", val )
+		_, err := conn.Do("RPUSH", "masscan_result", val)
 		if err != nil {
 			log.Println("-----masscan_result push to redis error----" + err.Error())
 		}
@@ -112,9 +110,9 @@ func NmapTask(queue string, args ...interface{}) error {
 
 		results, _ := core.RunNmap(wList[0], wList[1])
 		for _, v := range results {
-			val := fmt.Sprintf("%s|%s|%s|%s|%s", v.Ip, v.PortId, v.Protocol, v.Service, machineIp)
+			val := fmt.Sprintf("%s|%d|%s|%s|%s", v.Ip, v.PortId, v.Protocol, v.Service, machineIp)
 			log.Println("Insert a scan result of nmap to redis:" + val)
-			_, err := conn.Do("RPUSH", "portinfo", val )
+			_, err := conn.Do("RPUSH", "portinfo", val)
 			if err != nil {
 				log.Println("----- portinfo push to redis error----" + err.Error())
 			}
@@ -144,7 +142,7 @@ func main() {
 	go func() {
 		for {
 			VersionValidate(signals, conf.VERSION_URL, conf.DOWNLOAD_URL, conf.BACK_FILE_PATH)
-			time.Sleep(1 * time.Minute)
+			time.Sleep(10 * time.Second)
 		}
 	}()
 
