@@ -13,12 +13,6 @@ import (
 func main() {
 
 	q := queue.NewQueue(1024 * 1024 * 10)
-	//q := make(chan in, 0)
-	//
-	//if len(os.Args) != 2 {
-	//	fmt.Println("must input topic")
-	//	return
-	//}
 
 	go func() {
 		t1 := time.NewTicker(time.Second * 10)
@@ -28,11 +22,14 @@ func main() {
 		}
 	}()
 
+
+	// nmap结果插入到mongo
 	go func() {
 		obj := new(sink.MongoSink)
 		obj.Run(q)
 	}()
 
+	//
 	go func() {
 		obj := new(source.RedisSub)
 		obj.Run(q)

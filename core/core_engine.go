@@ -32,31 +32,31 @@ func CoreScanEngine(ipRange string, rate string, taskTime string, port string) e
 func CoreScanNmapEngine(masscanTask string) error {
 	wList := strings.Split(masscanTask, "§§§§")
 	//判断数量匹配
-	if len(wList) == 3 {
+	if len(wList) >= 2 {
+		machineIp := ""
+		if len(wList) == 3 {
+			machineIp = wList[2]
+		}
 		engineResult, _ := RunNmap(wList[0], wList[1])
 		for _, v := range engineResult {
 			log.Println("--------------")
 			log.Println(v)
-			err := lib.PushPortInfoToRedis(ScannerResultTransfer(v), "", wList[2])
+			err := lib.PushPortInfoToRedis(ScannerResultTransfer(v), "", machineIp)
 			return err
 		}
 	}
 	return nil
 }
 
-func RunMasscan(ip_range string, rate string, port string) ([]masscan.MasscanResultStruct, error) {
+func RunMasscan(ipRange string, rate string, port string) ([]masscan.MasscanResultStruct, error) {
+	var masscanResultStruct []masscan.MasscanResultStruct
 	m := masscan.New()
-	//
-	//// masscan可执行文件路径,默认不需要设置
-	//m.SetSystemPath("/usr/local/masscan/bin/masscan")
 
 	// 扫描端口范围
 	m.SetPorts(port)
 
-	//m.SetInclude("1.txt")
-
 	// 扫描IP范围
-	m.SetRanges(ip_range)
+	m.SetRanges(ipRange)
 
 	// 扫描速率
 	m.SetRate(rate)
@@ -79,8 +79,6 @@ func RunMasscan(ip_range string, rate string, port string) ([]masscan.MasscanRes
 		log.Println("Parse scanner result:", err)
 		return nil, err
 	}
-
-	var masscanResultStruct []masscan.MasscanResultStruct
 
 	for _, result := range results {
 		for _, v := range result.Ports {

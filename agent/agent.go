@@ -9,20 +9,15 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"sync"
 	"time"
 
 	"strconv"
-
-	"goworker"
-	"github.com/go-redis/redis"
 	"github.com/levigross/grequests"
+	"git.jd.com/wangshuo30/goworker"
 )
 
 var (
-	RedisDriver *redis.Client
-	Waitgroup   sync.WaitGroup
-	DsnAddr     string
+	DsnAddr string
 )
 
 // 扫描
@@ -173,7 +168,6 @@ func RestartProcess() {
 }
 
 func init() {
-	RedisDriver = lib.RedisDriver
 
 	DsnAddr = lib.DsnAddr
 
@@ -190,27 +184,33 @@ func init() {
 	}
 
 	goworker.SetSettings(settings)
-
 	goworker.Register("ScanMasscanTask", ScanMasscanTask)
-
 	goworker.Register("ScanNmapTask", ScanNmapTask)
-
 }
 
 func main() {
-	//lib.LogSetting()
+	lib.LogSetting()
 
 	cfg := lib.NewConfigUtil("")
-	versionURL, _ := cfg.GetString("web_default", "version_url")
-	DownloadURL, _ := cfg.GetString("web_default", "download_url")
-	bakFile, _ := cfg.GetString("bak_file", "bak_path")
+	versionURL, err := cfg.GetString("web_default", "version_url")
+	if err != nil {
+		log.Println("---Error:Config.ini 获取配置文件version_url失败------")
+		panic(err)
+	}
+	DownloadURL, err := cfg.GetString("web_default", "download_url")
+	if err != nil {
+		log.Println("---Error:Config.ini 获取配置文件download_url失败------")
+		panic(err)
+	}
+	bakFile, err := cfg.GetString("bak_file", "bak_path")
+	if err != nil {
+		log.Println("---Error:Config.ini 获取配置文件bak_path失败------")
+		panic(err)
+	}
 
 	signals := make(chan string)
 
-	Waitgroup.Add(2)
-
 	go func() {
-		defer Waitgroup.Done()
 		for {
 			VersionValidate(signals, versionURL, DownloadURL, bakFile)
 			time.Sleep(1 * time.Minute)
@@ -218,12 +218,9 @@ func main() {
 	}()
 
 	go func() {
-		defer Waitgroup.Done()
-
 		if err := goworker.Work(); err != nil {
 			log.Println("Error:", err)
 		}
-
 	}()
 
 	for {
@@ -231,12 +228,10 @@ func main() {
 		case signal := <-signals:
 			if signal == "new" {
 				RestartProcess()
-				return
 			}
 		case <-time.After(time.Second * 10):
 			continue
 		}
 	}
 
-	Waitgroup.Wait()
 }
