@@ -24,7 +24,7 @@ func init() {
 	settings := goworker.WorkerSettings{
 		URI:            dsnAddr,
 		Connections:    100,
-		Queues:         []string{"ScanMasscanTaskQueue", "ScanNmapTaskQueue"},
+		Queues:         []string{"masscan", "nmap"},
 		UseNumber:      true,
 		ExitOnComplete: false,
 		Concurrency:    2,
@@ -39,6 +39,8 @@ func main() {
 	lib.LogSetting()
 	var whiteIpsIprange []string
 	var cfg = lib.NewConfigUtil("")
+
+	// TODO BUG
 	ipRangeList, whiteIps, _ := lib.FindInitIpRanges()
 	log.Println("例行IP段数量:" + strconv.Itoa(len(ipRangeList)))
 	log.Println(OuterRedisDriver.Ping())
@@ -54,31 +56,12 @@ func main() {
 	}
 
 	//例行任务，每7小时一次
+	tickerLib := time.NewTicker(time.Hour * 24)
+	//例行任务，每7小时一次
 	ticker := time.NewTicker(time.Hour * 7)
 	//获取Masscan扫描结果，每1分钟监听一次
 	tickerNmapUrgent := time.NewTicker(time.Minute * 1)
 
-	log.Println("直接测试1")
-
-	for port := 0; port <= 65535; port++ {
-		for _, ipRange := range ipRangeList {
-
-			log.Println("例行扫描Adding：" + ipRange)
-			err := goworker.Enqueue(&goworker.Job{
-				Queue: "ScanMasscanTaskQueue",
-				Payload: goworker.Payload{
-					Class: "ScanMasscanTask",
-					Args:  []interface{}{string(ipRange), OrdinaryScanRate, "taskidxxxxxx", strconv.Itoa(port)},
-				},
-			},
-				false)
-			if err != nil {
-				log.Println("例行扫描goworker Enqueue时报错,ip段：" + ipRange + "，端口：" + strconv.Itoa(port))
-			}
-		}
-	}
-
-	log.Println("直接测试，数据插入完毕")
 
 	//例行扫描：非白名单IP，扫描rate：50000
 	go func() {
@@ -99,9 +82,9 @@ func main() {
 
 						log.Println("例行扫描Adding：" + ipRange)
 						err := goworker.Enqueue(&goworker.Job{
-							Queue: "ScanMasscanTaskQueue",
+							Queue: "masscan",
 							Payload: goworker.Payload{
-								Class: "ScanMasscanTask",
+								Class: "masscan",
 								Args:  []interface{}{string(ipRange), OrdinaryScanRate, taskid, strconv.Itoa(port)},
 							},
 						},
@@ -171,6 +154,7 @@ func main() {
 					continue
 				}
 				if count > 0 {
+					log.Println("masscan_result 存在Data")
 					for {
 						nmapTask, err := lib.RedisOuterDriver.LPop("masscan_result").Result()
 						if err != nil {
@@ -183,9 +167,9 @@ func main() {
 						}
 
 						err = goworker.Enqueue(&goworker.Job{
-							Queue: "ScanNmapTaskQueue",
+							Queue: "nmap",
 							Payload: goworker.Payload{
-								Class: "ScanNmapTask",
+								Class: "nmap",
 								Args:  []interface{}{nmapTask},
 							},
 						},
@@ -195,7 +179,19 @@ func main() {
 						}
 					}
 
+				} else {
+					log.Println("masscan_result 无最新信息")
 				}
+			}
+		}
+	}()
+
+	go func() {
+		for {
+			select {
+			case <-tickerLib.C:
+				ipRangeList, whiteIps, _ = lib.FindInitIpRanges()
+				log.Println("更新数据库ip段")
 			}
 		}
 	}()

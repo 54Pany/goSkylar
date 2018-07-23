@@ -1,229 +1,121 @@
 package main
 
 import (
-	"goSkylar/core"
-	"goSkylar/lib"
-	"io"
 	"log"
-	"net/http"
-	"os"
-	"os/exec"
-	"path/filepath"
 	"time"
 
-	"strconv"
-	"github.com/levigross/grequests"
 	"git.jd.com/wangshuo30/goworker"
+	"goSkylar/agent/conf"
+	"errors"
+	"strconv"
+
+	"github.com/toolkits/net"
+	"strings"
+	"goSkylar/agent/core"
+	"goSkylar/lib"
 )
 
 var (
-	DsnAddr string
+	version = "1.0.12"
 )
 
-// 扫描
-func ScanMasscanTask(queue string, args ...interface{}) error {
+func MasscanTask(queue string, args ...interface{}) error {
 	log.Println("调用队列Masscan:" + queue)
-	ipRange := ""
-	rate := "20"
-	taskTime := "get_queue_error"
+
 	if len(args) != 4 {
 		log.Println("----ScanMasscanTask 参数个数错误-----")
 		log.Println(args)
 		return nil
 	}
 
-	ipRange = args[0].(string)
-	rate = args[1].(string)
-	taskTime = args[2].(string)
+	ipRange := args[0].(string)
+	rate := args[1].(string)
 	port := args[3].(string)
-	log.Println(ipRange)
-	err := core.CoreScanEngine(ipRange, rate, taskTime, port)
+
+	selfIpList, err := net.IntranetIP()
+	selfIp := ""
+	if err != nil {
+		log.Println("-------Machine IP获取失败--------")
+	} else {
+		selfIp = selfIpList[0]
+	}
+
+	results, err := core.RunMasscan(ipRange, rate, port)
+
+	for _, v := range results {
+		err := lib.RedisDriver.RPush("masscan_result", v.IP+"§§§§"+strconv.Itoa(v.Port)+"§§§§"+selfIp).Err()
+		if err != nil {
+			log.Println("-----masscan_result push to redis error----" + err.Error())
+		}
+	}
 
 	log.Println("From " + queue + " " + args[2].(string))
 	return err
 }
 
-func ScanNmapTask(queue string, args ...interface{}) error {
+func NmapTask(queue string, args ...interface{}) error {
+
 	log.Println("调用队列Nmap:" + queue)
-	if len(args) == 1 {
-		err := core.CoreScanNmapEngine(args[0].(string))
-		if err != nil {
-			log.Println("CoreScanNmapEngine Error:" + err.Error())
+
+	if len(args) < 1 {
+		return errors.New("nmap消费队列arg错误")
+	}
+
+	taskInfo := args[0].(string)
+	wList := strings.Split(taskInfo, "§§§§")
+
+	//判断数量匹配
+	if len(wList) >= 2 {
+		machineIp := ""
+		if len(wList) == 3 {
+			machineIp = wList[2]
+		}
+
+		results, _ := core.RunNmap(wList[0], wList[1])
+		for _, v := range results {
+			log.Println(v)
+			err := lib.PushPortInfoToRedis(core.ScannerResultTransfer(v), "", machineIp)
 			return err
 		}
 	}
+
 	return nil
 }
 
-var (
-	version     = "1.0.11"
-	downloadURL = ""
-)
-
-//判断路径是否存在
-func PathExists(path string) (bool, error) {
-	_, err := os.Stat(path)
-	if err == nil {
-		return true, nil
-	}
-	if os.IsNotExist(err) {
-		return false, nil
-	}
-	return false, err
-}
-
-//check版本
-func VersionValidate(c chan string, versionURL string,
-	linuxDownloadURL string, bakFile string) bool {
-
-	resp, err := grequests.Get(versionURL, nil)
-
-	// You can modify the request by passing an optional RequestOptions struct
-	if err != nil {
-		log.Println("Validate version error: Unable to make request " + err.Error())
-		return false
-	}
-
-	newVersion := resp.String()
-	if version != newVersion {
-		t := strconv.FormatInt(time.Now().Unix(), 10)
-		timestampStr := lib.InterfaceToStr(t)
-		authkey := "gPv94qxP"
-		sign := lib.Md5Str(timestampStr + authkey)
-
-		downloadURL = linuxDownloadURL + "?timestamp=" + timestampStr + "&sign=" + sign
-		log.Println(downloadURL)
-		download, _ := DownloadNewAgent(downloadURL, bakFile)
-		if download == true {
-			c <- "new"
-			log.Println("-----发现新版本-------" + newVersion)
-			return true
-		}
-		c <- "old"
-		return false
-	}
-	log.Println("-----Version:当前版本已是最新-----版本号：" + version)
-	return false
-}
-
-//downlaod new agent
-func DownloadNewAgent(url, bakFile string) (bool, error) {
-	res, err := http.Get(url)
-	if err != nil {
-		return false, err
-	}
-
-	existPath, err := PathExists(bakFile)
-	if err != nil {
-		log.Println("get dir error:" + err.Error())
-		return false, err
-	}
-	if existPath == false {
-		err := os.Mkdir(bakFile, os.ModePerm)
-		if err != nil {
-			log.Printf("mkdir bak_file failed:" + err.Error())
-			return false, err
-		}
-	}
-
-	fileName := "agent"
-	cmd := exec.Command("cp", fileName, bakFile+fileName+"."+version)
-	cmd.Run()
-
-	cmd = exec.Command("rm", "-rf", fileName)
-	cmd.Run()
-
-	f, err := os.Create(fileName)
-	if err != nil {
-		log.Println(err.Error())
-		return false, err
-	}
-	_, er := io.Copy(f, res.Body)
-	if er != nil {
-		log.Println(er.Error())
-		return false, er
-	}
-
-	log.Println("-----新版本下载成功-------")
-
-	cmdd := exec.Command("chmod", "+x", fileName)
-	cmdd.Run()
-
-	res.Body.Close()
-	f.Close()
-	return true, er
-}
-
-//restart process
-func RestartProcess() {
-	filePath, _ := filepath.Abs(os.Args[0])
-	cmd := exec.Command(filePath)
-	log.Println("FilePath:")
-	log.Println(filePath)
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	err := cmd.Start()
-	if err != nil {
-		log.Fatalf("GracefulRestart: Failed to launch, error: %v", err)
-	}
-}
-
-func init() {
-
-	DsnAddr = lib.DsnAddr
-
-	// 初始化
-	settings := goworker.WorkerSettings{
-		URI:            DsnAddr,
-		Connections:    100,
-		Queues:         []string{"ScanMasscanTaskQueue", "ScanNmapTaskQueue"},
-		UseNumber:      true,
-		ExitOnComplete: false,
-		Concurrency:    1,
-		Namespace:      "goskylar:",
-		Interval:       5.0,
-	}
-
-	goworker.SetSettings(settings)
-	goworker.Register("ScanMasscanTask", ScanMasscanTask)
-	goworker.Register("ScanNmapTask", ScanNmapTask)
-}
-
 func main() {
-	//lib.LogSetting()
-
-	cfg := lib.NewConfigUtil("")
-	versionURL, err := cfg.GetString("web_default", "version_url")
-	if err != nil {
-		log.Println("---Error:Config.ini 获取配置文件version_url失败------")
-		panic(err)
-	}
-	DownloadURL, err := cfg.GetString("web_default", "download_url")
-	if err != nil {
-		log.Println("---Error:Config.ini 获取配置文件download_url失败------")
-		panic(err)
-	}
-	bakFile, err := cfg.GetString("bak_file", "bak_path")
-	if err != nil {
-		log.Println("---Error:Config.ini 获取配置文件bak_path失败------")
-		panic(err)
-	}
 
 	signals := make(chan string)
 
+	// 初始化
+	settings := goworker.WorkerSettings{
+		URI:            conf.REDIS_URI,
+		UseNumber:      true,
+		ExitOnComplete: false,
+		Namespace:      "goskylar:",
+	}
+
+	goworker.SetSettings(settings)
+	goworker.Register("masscan", MasscanTask)
+	goworker.Register("nmap", NmapTask)
+
+	// 检查升级
 	go func() {
 		for {
-			VersionValidate(signals, versionURL, DownloadURL, bakFile)
+			VersionValidate(signals, conf.VERSION_URL, conf.DOWNLOAD_URL, conf.BACK_FILE_PATH)
 			time.Sleep(1 * time.Minute)
 		}
 	}()
 
 	go func() {
-		if err := goworker.Work(); err != nil {
-			log.Println("Error:", err)
+		for {
+			if err := goworker.Work(); err != nil {
+				log.Println("Error:", err)
+			}
+			time.Sleep(time.Second * 15)
 		}
 	}()
 
+	// 根据信号处理任务
 	for {
 		select {
 		case signal := <-signals:

@@ -59,7 +59,7 @@ type MasscanStruct struct {
 	} `json:"ports"`
 }
 
-type MasscanResultStruct struct {
+type MasscanResult struct {
 	IP   string `json:"ip"`
 	Port int    `json:"port"`
 }
