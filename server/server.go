@@ -107,14 +107,13 @@ func main() {
 					//开始处理任务
 					ipRange := infoList[0]
 					port := infoList[1]
-					taskid := lib.TimeToStr(time.Now().Unix())
 
 					log.Println("例行扫描Adding：", ipRange, port)
 					err := goworker.Enqueue(&goworker.Job{
 						Queue: "masscan",
 						Payload: goworker.Payload{
 							Class: "masscan",
-							Args:  []interface{}{ipRange, ORDINARY_SCAN_RATE, taskid, port},
+							Args:  []interface{}{ipRange, ORDINARY_SCAN_RATE, port},
 						},
 					},
 						false)
@@ -142,13 +141,6 @@ func main() {
 				log.Println("ticked at: " + lib.DateToStr(time.Now().Unix()))
 				urgentIPs := data.FindUrgentIP()
 				if len(urgentIPs) > 0 {
-					u, err := uuid.NewV4()
-					if err != nil {
-						log.Println(err)
-					}
-					taskid := u.String()
-					// 临时任务id
-					log.Println(taskid)
 					for port := 1; port <= 65535; port++ {
 						for _, ip := range urgentIPs {
 
@@ -159,7 +151,7 @@ func main() {
 								Queue: "ScanMasscanTaskQueue",
 								Payload: goworker.Payload{
 									Class: "ScanMasscanTask",
-									Args:  []interface{}{string(ipRange), "50000", taskid, strconv.Itoa(port)},
+									Args:  []interface{}{string(ipRange), "50000", strconv.Itoa(port)},
 								},
 							},
 								true)

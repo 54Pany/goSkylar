@@ -45,7 +45,7 @@ func init() {
 func MasscanTask(queue string, args ...interface{}) error {
 	log.Println("调用队列Masscan:" + queue)
 
-	if len(args) != 4 {
+	if len(args) != 3 {
 		log.Println("----ScanMasscanTask 参数个数错误-----")
 		log.Println(args)
 		return nil
@@ -53,7 +53,7 @@ func MasscanTask(queue string, args ...interface{}) error {
 
 	ipRange := args[0].(string)
 	rate := args[1].(string)
-	port := args[3].(string)
+	port := args[2].(string)
 
 	selfIpList, err := net.IntranetIP()
 	selfIp := ""
@@ -83,7 +83,6 @@ func MasscanTask(queue string, args ...interface{}) error {
 		}
 	}
 
-	log.Println("From " + queue + " " + args[2].(string))
 	return err
 }
 
