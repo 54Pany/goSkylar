@@ -24,7 +24,8 @@ var (
 )
 
 func init() {
-	// 最大任务数量
+
+	// 最大任务数量,防止任务堆积,一般设置masscan并发执行的任务数量总和
 	MaxNum = 1000
 	// 常规扫描速率
 	ORDINARY_SCAN_RATE = "50000"
@@ -69,10 +70,13 @@ func main() {
 
 	task := make(chan string)
 
+	// 任务生成
 	go func() {
 		for {
 			startTime := time.Now().Unix()
 			ipRangeList := data.FindIpRanges()
+
+			// 一个IP段扫描2个端口
 			for port := 0; port <= 65535; port++ {
 				if port%2 == 0 {
 					for _, ipRange := range ipRangeList {
@@ -87,20 +91,21 @@ func main() {
 		}
 	}()
 
-	connScan := RedisPool.Get()
-	defer connScan.Close()
-
 	go func() {
 		for {
+			connScan := RedisPool.Get()
 			//n 剩余任务
 			reply, err := connScan.Do("LLEN", "goskylar:queue:masscan")
 			if err != nil {
-
 				log.Println(err)
+				connScan.Close()
+				time.Sleep(time.Second)
 				continue
 			}
 			if reply == nil {
 				log.Println("LLEN Empty.")
+				connScan.Close()
+				time.Sleep(time.Second)
 				continue
 			}
 
@@ -135,6 +140,7 @@ func main() {
 				log.Println("当前剩余任务数量:", n, ",队列最大任务数量", MaxNum)
 				time.Sleep(time.Second)
 			}
+			connScan.Close()
 		}
 	}()
 
@@ -177,15 +183,15 @@ func main() {
 	}()
 
 	// 定时获取masscan扫描结果，给nmap集群进行扫描
-	conn := RedisPool.Get()
-	defer conn.Close()
-
 	go func() {
 		for {
+			conn := RedisPool.Get()
 
 			reply, err := conn.Do("LPOP", fmt.Sprintf("masscan_result"))
 			if err != nil {
-				fmt.Println(err)
+				log.Println(err)
+				conn.Close()
+				time.Sleep(time.Second)
 				continue
 			}
 
@@ -205,19 +211,19 @@ func main() {
 					log.Println(err)
 				}
 			}
+			conn.Close()
 		}
 	}()
-
-	connPortInfo := RedisPool.Get()
-	defer connPortInfo.Close()
 
 	// 从nmap扫描结果中获取信息入库
 	go func() {
 		for {
+			connPortInfo := RedisPool.Get()
 
 			reply, err := connPortInfo.Do("LPOP", fmt.Sprintf("portinfo"))
 			if err != nil {
 				log.Println(err)
+				connPortInfo.Close()
 				continue
 			}
 
@@ -230,6 +236,7 @@ func main() {
 					log.Println(err)
 				}
 			}
+			connPortInfo.Close()
 		}
 	}()
 
