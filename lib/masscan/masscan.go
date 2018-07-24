@@ -17,6 +17,7 @@ type Masscan struct {
 	Rate        string
 	Include     string
 	ExcludeFile string
+	WaitTime    string
 	//FileName   string
 	Result []byte
 }
@@ -98,6 +99,10 @@ func (m *Masscan) SetExclude(excludefile string) {
 	m.ExcludeFile = excludefile
 }
 
+func (m *Masscan) SetWaitTime(waittime string) {
+	m.WaitTime = waittime
+}
+
 // Start scanning
 func (m *Masscan) Run() error {
 	var (
@@ -119,6 +124,10 @@ func (m *Masscan) Run() error {
 	if m.ExcludeFile != "" {
 		m.Args = append(m.Args, "--excludefile")
 		m.Args = append(m.Args, m.ExcludeFile)
+	}
+	if m.WaitTime != "" {
+		m.Args = append(m.Args, "--wait")
+		m.Args = append(m.Args, m.WaitTime)
 	}
 	if m.Include != "" {
 		m.Args = append(m.Args, "--include")

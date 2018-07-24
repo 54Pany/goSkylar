@@ -15,6 +15,7 @@ import (
 	"fmt"
 
 	"goSkylar/server/data"
+	"goSkylar/server/conf"
 )
 
 var (
@@ -51,12 +52,26 @@ func init() {
 
 func main() {
 
+	//lib.LogSetting()
+
+	// 初始化
+	settings := goworker.WorkerSettings{
+		URI:            conf.REDIS_URI,
+		Connections:    100,
+		Queues:         []string{"masscan","nmap"},
+		UseNumber:      true,
+		ExitOnComplete: false,
+		Namespace:      "goskylar:",
+	}
+
+	goworker.SetSettings(settings)
+
 	task := make(chan string)
 
 	go func() {
 		for {
-			ipRangeList, _, _ := lib.FindInitIpRanges()
-			for port := 0; port <= 65535; port++ {
+			ipRangeList := data.FindIpRanges()
+			for port := 80; port <= 81; port++ {
 				for _, ipRange := range ipRangeList {
 					task <- ipRange + "|" + strconv.Itoa(port)
 				}
@@ -104,11 +119,14 @@ func main() {
 					},
 						false)
 					if err != nil {
-						log.Println("例行扫描goworker Enqueue时报错,ip段：" + ipRange + "，端口：" + strconv.Itoa(port))
+						log.Println("例行扫描goworker Enqueue时报错:", err)
 					} else {
 						log.Println("成功添加任务:", ipRange, port)
 					}
 				}
+			} else {
+				log.Println("当前剩余任务数量:", n, ",队列最大任务数量", MaxNum)
+				time.Sleep(time.Second)
 			}
 		}
 	}()
@@ -122,7 +140,7 @@ func main() {
 			select {
 			case <-tickerUrgent.C:
 				log.Println("ticked at: " + lib.DateToStr(time.Now().Unix()))
-				urgentIPs := lib.FindUrgentIP()
+				urgentIPs := data.FindUrgentIP()
 				if len(urgentIPs) > 0 {
 					u, err := uuid.NewV4()
 					if err != nil {
@@ -150,7 +168,7 @@ func main() {
 							}
 						}
 					}
-					lib.UpdateUrgentScanStatus()
+					data.UpdateUrgentScanStatus()
 				} else {
 					log.Println("无最新临时任务: " + lib.DateToStr(time.Now().Unix()))
 				}
@@ -205,7 +223,7 @@ func main() {
 
 			if reply != nil {
 				taskInfo := string(reply.([]byte))
-				data.NmapResultToMongo(taskInfo)
+				err = data.NmapResultToMongo(taskInfo)
 
 				log.Println(taskInfo)
 				if err != nil {

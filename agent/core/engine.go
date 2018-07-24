@@ -24,6 +24,9 @@ func RunMasscan(ipRange string, rate string, port string) ([]masscan.MasscanResu
 	// 隔离扫描名单
 	m.SetExclude("exclude.txt")
 
+	// 设置等待时间
+	m.SetWaitTime("5")
+
 	// 开始扫描
 	err := m.Run()
 	if err != nil {
