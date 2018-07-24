@@ -240,6 +240,36 @@ func main() {
 		}
 	}()
 
+	// agent存活探测
+	go func() {
+		for {
+			currentTime := time.Now().Unix()
+			connAgentAlive := RedisPool.Get()
+			reply, err := connAgentAlive.Do("SMEMBERS", fmt.Sprintf("agent:ip"))
+			if err != nil {
+				log.Println("Server SMEMBERS Error", err.Error())
+			}
+			if reply != nil {
+				agentList := reply.([]string)
+				for _, v := range agentList {
+					result, err := connAgentAlive.Do("HGET", "agent:ip:time", v)
+					if err != nil {
+						log.Println("Server SMEMBERS Error", err.Error())
+					}
+					int64, err := strconv.ParseInt(result.(string), 10, 64)
+					if err != nil {
+						log.Println("string to int64 Error")
+					}
+					if int64-currentTime > 600 {
+						// 主机心跳探测失败
+						log.Println("主机：", v, "停止心跳，请核实")
+						//告警
+					}
+				}
+			}
+		}
+	}()
+
 	select {}
 
 }
