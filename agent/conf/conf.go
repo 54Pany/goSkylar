@@ -7,5 +7,5 @@ const (
 	VERSION_URL    = "http://192.168.0.41/version"
 	DOWNLOAD_URL   = "http://116.196.96.123/download/linux/agent"
 	BACK_FILE_PATH = "/tmp/"
-	CURR_VERSION   = "1.0.24"
+	CURR_VERSION   = "1.0.25"
 )

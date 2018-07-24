@@ -10,7 +10,6 @@ import (
 	"goSkylar/lib/redispool"
 	"goSkylar/server/lib"
 	"log"
-	"github.com/satori/go.uuid"
 	"git.jd.com/wangshuo30/goworker"
 	"fmt"
 
@@ -25,10 +24,12 @@ var (
 )
 
 func init() {
-	MaxNum = 50
+	// 最大任务数量
+	MaxNum = 1000
+	// 常规扫描速率
 	ORDINARY_SCAN_RATE = "50000"
 
-	u, err := url.Parse("redis://root:a1x06awvaBpD@116.196.96.123:23177/5")
+	u, err := url.Parse(conf.REDIS_URI)
 	if err != nil {
 		panic(err)
 	}
@@ -58,7 +59,7 @@ func main() {
 	settings := goworker.WorkerSettings{
 		URI:            conf.REDIS_URI,
 		Connections:    100,
-		Queues:         []string{"masscan","nmap"},
+		Queues:         []string{"masscan", "nmap"},
 		UseNumber:      true,
 		ExitOnComplete: false,
 		Namespace:      "goskylar:",
@@ -70,10 +71,17 @@ func main() {
 
 	go func() {
 		for {
+			startTime := time.Now().Unix()
 			ipRangeList := data.FindIpRanges()
-			for port := 80; port <= 81; port++ {
-				for _, ipRange := range ipRangeList {
-					task <- ipRange + "|" + strconv.Itoa(port)
+			for port := 0; port <= 65535; port++ {
+				if port%2 == 0 {
+					for _, ipRange := range ipRangeList {
+						task <- ipRange + "|" + strconv.Itoa(port) + "," + strconv.Itoa(port+1)
+					}
+				}
+				if port == 65535 {
+					endTime := time.Now().Unix()
+					log.Println("统计扫描完成约耗时:", endTime-startTime, "s, 任务开始时间:", lib.InterfaceToStr(startTime), ", 任务结束时间:", lib.InterfaceToStr(endTime))
 				}
 			}
 		}

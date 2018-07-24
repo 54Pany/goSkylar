@@ -150,8 +150,6 @@ func (m *Masscan) Run() error {
 // Parse scans result.
 func (m *Masscan) Parse() ([]Host, error) {
 	var hosts []Host
-	log.Println("-----Masscan------")
-	log.Println(string(m.Result))
 	decoder := xml.NewDecoder(bytes.NewReader(m.Result))
 	for {
 		t, err := decoder.Token()
