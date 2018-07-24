@@ -13,9 +13,6 @@ var (
 	externalcanurgent   *mgo.Collection
 )
 
-func init() {
-
-}
 
 func FindInitIpRanges() (allipranges []string, allipsWhite []string, blackIps []string) {
 	mExternalScan = MongoDriver{TableName: "external_scan"}
