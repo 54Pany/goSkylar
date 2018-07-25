@@ -124,8 +124,6 @@ func NmapTask(queue string, args ...interface{}) error {
 func main() {
 
 	signals := make(chan string)
-	// agent存活信号，每分钟监听
-	ticker := time.NewTicker(time.Minute * 1)
 
 	// 初始化
 	settings := goworker.WorkerSettings{
@@ -144,6 +142,37 @@ func main() {
 		for {
 			VersionValidate(signals, conf.VERSION_URL, conf.DOWNLOAD_URL, conf.BACK_FILE_PATH)
 			time.Sleep(10 * time.Second)
+		}
+	}()
+
+	//机器存活心跳
+	go func() {
+		for {
+			log.Println("存活心跳探测：")
+			conn := RedisPool.Get()
+
+			selfIpList, err := net.IntranetIP()
+			selfIp := ""
+			if err != nil {
+				log.Println("-------Machine IP获取失败--------")
+			} else {
+				selfIp = selfIpList[0]
+			}
+			currentTime := time.Now().Unix()
+			_, err = conn.Do("SADD", "agent:ip", selfIp)
+			if err != nil {
+				log.Println("Agent SADD Error", err.Error())
+				continue
+			}
+			_, err = conn.Do("HSET", "agent:ip:time", selfIp, currentTime)
+			if err != nil {
+				log.Println("Agent HSET Error", err.Error())
+				continue
+			}
+			log.Println("本机:【" + selfIp + "】已经向server发出心跳")
+			time.Sleep(time.Minute * 1)
+
+			conn.Close()
 		}
 	}()
 
@@ -167,30 +196,5 @@ func main() {
 			continue
 		}
 	}
-
-	//机器存活心跳
-	go func() {
-		conn := RedisPool.Get()
-		selfIpList, err := net.IntranetIP()
-		selfIp := ""
-		if err != nil {
-			log.Println("-------Machine IP获取失败--------")
-		} else {
-			selfIp = selfIpList[0]
-		}
-		select {
-		case <-ticker.C:
-			currentTime := time.Now().Unix()
-			_, err := conn.Do("SADD", "agent:ip", selfIp)
-			if err != nil {
-				log.Println("Agent SADD Error", err.Error())
-			}
-			_, err = conn.Do("HSET", "agent:ip:time", selfIp, currentTime)
-			if err != nil {
-				log.Println("Agent Error", err.Error())
-			}
-			log.Println("本机:【" + selfIp + "】已经向server发出心跳")
-		}
-	}()
 
 }

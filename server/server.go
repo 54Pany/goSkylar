@@ -18,9 +18,10 @@ import (
 )
 
 var (
-	RedisPool          *redis.Pool
-	MaxNum             int
-	ORDINARY_SCAN_RATE string
+	RedisPool        *redis.Pool
+	MaxNum           int
+	OrdinaryScanRate string
+	AgentAliveTime   int64
 )
 
 func init() {
@@ -28,7 +29,7 @@ func init() {
 	// 最大任务数量,防止任务堆积,一般设置masscan并发执行的任务数量总和
 	MaxNum = 1000
 	// 常规扫描速率
-	ORDINARY_SCAN_RATE = "50000"
+	OrdinaryScanRate = "50000"
 
 	u, err := url.Parse(conf.REDIS_URI)
 	if err != nil {
@@ -75,6 +76,7 @@ func main() {
 		for {
 			startTime := time.Now().Unix()
 			ipRangeList := data.FindIpRanges()
+			//ipRangeList := []string{"45.76.205.0/24"}
 
 			// 一个IP段扫描2个端口
 			for port := 0; port <= 65535; port++ {
@@ -126,7 +128,7 @@ func main() {
 						Queue: "masscan",
 						Payload: goworker.Payload{
 							Class: "masscan",
-							Args:  []interface{}{ipRange, ORDINARY_SCAN_RATE, port},
+							Args:  []interface{}{ipRange, OrdinaryScanRate, port},
 						},
 					},
 						false)
@@ -250,23 +252,32 @@ func main() {
 				log.Println("Server SMEMBERS Error", err.Error())
 			}
 			if reply != nil {
-				agentList := reply.([]string)
+				agentList := reply.([]interface{})
 				for _, v := range agentList {
-					result, err := connAgentAlive.Do("HGET", "agent:ip:time", v)
+					agentIp := string(v.([]byte))
+					result, err := connAgentAlive.Do("HGET", "agent:ip:time", agentIp)
 					if err != nil {
 						log.Println("Server SMEMBERS Error", err.Error())
+						continue
 					}
-					int64, err := strconv.ParseInt(result.(string), 10, 64)
+					resultTime, err := strconv.ParseInt(string(result.([]byte)), 10, 64)
 					if err != nil {
 						log.Println("string to int64 Error")
+						continue
 					}
-					if int64-currentTime > 600 {
+					if currentTime-resultTime > 150 {
 						// 主机心跳探测失败
-						log.Println("主机：", v, "停止心跳，请核实")
-						//告警
+						log.Println("主机：", agentIp, "停止心跳，请核实")
+						// 短信、邮件告警
+					} else {
+						log.Println("主机：", agentIp, "当前存活")
 					}
 				}
 			}
+			connAgentAlive.Close()
+
+			// 每隔1分钟Server端探测一次
+			time.Sleep(time.Minute * 1)
 		}
 	}()
 
