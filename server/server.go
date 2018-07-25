@@ -21,7 +21,7 @@ var (
 	RedisPool        *redis.Pool
 	MaxNum           int
 	OrdinaryScanRate string
-	AgentAliveTime   int64
+	MessageNum       map[string]int
 )
 
 func init() {
@@ -51,6 +51,8 @@ func init() {
 		RedisIdleTimeout: 180 * time.Second, // 最大的空闲连接等待时间，超过此时间后，空闲连接将被关闭
 	})
 
+	MessageNum = map[string]int{}
+
 }
 
 func main() {
@@ -76,7 +78,6 @@ func main() {
 		for {
 			startTime := time.Now().Unix()
 			ipRangeList := data.FindIpRanges()
-			//ipRangeList := []string{"45.76.205.0/24"}
 
 			// 一个IP段扫描2个端口
 			for port := 0; port <= 65535; port++ {
@@ -266,10 +267,26 @@ func main() {
 						continue
 					}
 					if currentTime-resultTime > 150 {
-						// 主机心跳探测失败
+						// 超过两分钟，主机心跳探测失败
 						log.Println("主机：", agentIp, "停止心跳，请核实")
 						// 短信、邮件告警
+						if _, ok := MessageNum[agentIp]; ok {
+							// 存在
+							if MessageNum[agentIp] <= 3 {
+								go lib.MobileMessage("13552085481", "主机："+agentIp+"停止心跳，请核实")
+								MessageNum[agentIp] += 1
+							}
+						} else {
+							MessageNum[agentIp] = 1
+							go lib.MobileMessage("13552085481", "主机："+agentIp+"停止心跳，请核实")
+						}
 					} else {
+						if _, ok := MessageNum[agentIp]; ok {
+							if MessageNum[agentIp] > 0 {
+								go lib.MobileMessage("13552085481", "主机："+agentIp+"已经重启")
+							}
+						}
+						MessageNum[agentIp] = 0
 						log.Println("主机：", agentIp, "当前存活")
 					}
 				}
