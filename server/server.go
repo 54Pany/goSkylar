@@ -251,6 +251,7 @@ func main() {
 			reply, err := connAgentAlive.Do("SMEMBERS", fmt.Sprintf("agent:ip"))
 			if err != nil {
 				log.Println("Server SMEMBERS Error", err.Error())
+				continue
 			}
 			if reply != nil {
 				agentList := reply.([]interface{})
@@ -273,17 +274,17 @@ func main() {
 						if _, ok := MessageNum[agentIp]; ok {
 							// 存在
 							if MessageNum[agentIp] <= 3 {
-								go lib.MobileMessage("13552085481", "主机："+agentIp+"停止心跳，请核实")
+								go lib.SendAlarmMessage(agentIp)
 								MessageNum[agentIp] += 1
 							}
 						} else {
 							MessageNum[agentIp] = 1
-							go lib.MobileMessage("13552085481", "主机："+agentIp+"停止心跳，请核实")
+							go lib.SendAlarmMessage(agentIp)
 						}
 					} else {
 						if _, ok := MessageNum[agentIp]; ok {
 							if MessageNum[agentIp] > 0 {
-								go lib.MobileMessage("13552085481", "主机："+agentIp+"已经重启")
+								go lib.SendRebootMessage(agentIp)
 							}
 						}
 						MessageNum[agentIp] = 0

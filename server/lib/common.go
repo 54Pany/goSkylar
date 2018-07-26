@@ -14,6 +14,7 @@ import (
 	"crypto/tls"
 	"github.com/m3ng9i/go-utils/encoding"
 	"goSkylar/server/conf"
+	"log"
 )
 
 func TimeToStr(intTime int64) string {
@@ -151,4 +152,30 @@ func MobileMessage(mobile_number string, message_content string) error {
 		return err
 	}
 	return err
+}
+
+// 发送告警短信，主机停止心跳
+func SendAlarmMessage(agentIp string) error {
+	phones := strings.Split(conf.MESSAGE_NUMBER, ",")
+	for _, v := range phones {
+		err := MobileMessage(v, "主机："+agentIp+"停止心跳，请核实")
+		if err != nil {
+			log.Println("号码：", v, "发送短信失败")
+			continue
+		}
+	}
+	return nil
+}
+
+// 发送重启短信，主机已经重连
+func SendRebootMessage(agentIp string) error {
+	phones := strings.Split(conf.MESSAGE_NUMBER, ",")
+	for _, v := range phones {
+		err := MobileMessage(v, "主机："+agentIp+"已经重启")
+		if err != nil {
+			log.Println("号码：", v, "发送短信失败")
+			continue
+		}
+	}
+	return nil
 }
