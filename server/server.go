@@ -274,16 +274,19 @@ func main() {
 						if _, ok := MessageNum[agentIp]; ok {
 							// 存在
 							if MessageNum[agentIp] <= 3 {
+								// 发送告警短信，主机停止心跳
 								go lib.SendAlarmMessage(agentIp)
 								MessageNum[agentIp] += 1
 							}
 						} else {
 							MessageNum[agentIp] = 1
+							// 发送告警短信，主机停止心跳
 							go lib.SendAlarmMessage(agentIp)
 						}
 					} else {
 						if _, ok := MessageNum[agentIp]; ok {
 							if MessageNum[agentIp] > 0 {
+								// 发送重启短信，主机已经重连
 								go lib.SendRebootMessage(agentIp)
 							}
 						}
