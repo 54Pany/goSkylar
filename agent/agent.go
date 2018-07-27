@@ -76,18 +76,19 @@ func MasscanTask(queue string, args ...interface{}) error {
 	conn := RedisPool.Get()
 	defer conn.Close()
 
-	// TODO 可以一次push进去
+	// 一次push进去
+	items := []interface{}{"masscan_result",}
 	for _, v := range results {
-		val := fmt.Sprintf("%s|%s|%s", v.IP, v.Port, localIP)
-		log.Println("Insert a scan result of masscan to redis:" + val)
-		_, err := conn.Do("RPUSH", "masscan_result", val)
-		if err != nil {
-			log.Println("-----masscan_result push to redis error----" + err.Error())
-		}
+		items = append(items, fmt.Sprintf("%s|%s|%s", v.IP, v.Port, localIP))
 	}
 
-	return err
+	_, err = conn.Do("RPUSH", "masscan_result", items)
+	if err != nil {
+		log.Println("masscan_result push to redis error:" + err.Error())
+	}
 
+	log.Println("Insert a scan result of masscan to redis:", len(items))
+	return err
 }
 
 func NmapTask(queue string, args ...interface{}) error {
@@ -107,20 +108,17 @@ func NmapTask(queue string, args ...interface{}) error {
 
 	// 判断数量匹配
 	if len(wList) >= 2 {
-		machineIp := ""
-		if len(wList) == 3 {
-			machineIp = wList[2]
-		}
-
+		items := []interface{}{"portinfo",}
 		results, _ := core.RunNmap(wList[0], wList[1])
 		for _, v := range results {
-			val := fmt.Sprintf("%s|%d|%s|%s|%s", v.Ip, v.PortId, v.Protocol, v.Service, machineIp)
-			log.Println("Insert a scan result of nmap to redis:" + val)
-			_, err := conn.Do("RPUSH", "portinfo", val)
-			if err != nil {
-				log.Println("----- portinfo push to redis error----" + err.Error())
-			}
+			items = append(items, fmt.Sprintf("%s|%d|%s|%s|%s", v.Ip, v.PortId, v.Protocol, v.Service, localIP))
 		}
+		_, err := conn.Do("RPUSH", items)
+		if err != nil {
+			log.Println("----- portinfo push to redis error----" + err.Error())
+			return  err
+		}
+		log.Println("Insert a scan result of nmap to redis:", len(items))
 	}
 
 	return nil
@@ -130,9 +128,9 @@ func main() {
 
 	signals := make(chan string)
 
-	// 初始化  TODO 连接数待优化
 	settings := goworker.WorkerSettings{
 		URI:            conf.REDIS_URI,
+		Connections: 100,
 		UseNumber:      true,
 		ExitOnComplete: false,
 		Namespace:      "goskylar:",
