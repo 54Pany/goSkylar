@@ -55,9 +55,8 @@ func MasscanTask(queue string, args ...interface{}) error {
 	log.Println("调用队列Masscan:" + queue)
 
 	if len(args) != 3 {
-		log.Println("----ScanMasscanTask 参数个数错误-----")
-		log.Println(args)
-		return nil
+		log.Println("----ScanMasscanTask 参数个数错误-----", len(args))
+		return errors.New(fmt.Sprintf("masscan任务参数个数错误:%d, args:%s", len(args), args))
 	}
 
 	ipRange := args[0].(string)
@@ -96,7 +95,8 @@ func NmapTask(queue string, args ...interface{}) error {
 	log.Println("调用队列Nmap:" + queue)
 
 	if len(args) < 1 {
-		return errors.New("nmap消费队列arg错误")
+		log.Println("----NmapTask 参数个数错误-----", len(args))
+		return errors.New(fmt.Sprintf("nmap任务参数个数错误:%d, args:%s", len(args), args))
 	}
 
 	taskInfo := args[0].(string)
@@ -105,7 +105,7 @@ func NmapTask(queue string, args ...interface{}) error {
 	conn := RedisPool.Get()
 	defer conn.Close()
 
-	//判断数量匹配
+	// 判断数量匹配
 	if len(wList) >= 2 {
 		machineIp := ""
 		if len(wList) == 3 {

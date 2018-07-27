@@ -27,7 +27,7 @@ var (
 func init() {
 
 	// 最大任务数量,防止任务堆积,一般设置masscan并发执行的任务数量总和
-	MaxNum = 1000
+	MaxNum = 3000
 	// 常规扫描速率
 	OrdinaryScanRate = "100"
 
@@ -81,14 +81,18 @@ func main() {
 
 			// 一个IP段扫描2个端口
 			for port := 0; port <= 65535; port++ {
+
+				if port == 65535 {
+					endTime := time.Now().Unix()
+					msg := fmt.Sprintf("统计扫描完成约耗时:%d s, 任务开始时间: %s, 任务结束时间:%s", endTime-startTime, lib.InterfaceToStr(startTime), lib.InterfaceToStr(endTime))
+					log.Println(msg)
+					lib.SendSMessage(msg)
+				}
+
 				if port%2 == 0 {
 					for _, ipRange := range ipRangeList {
 						task <- ipRange + "|" + strconv.Itoa(port) + "," + strconv.Itoa(port+1)
 					}
-				}
-				if port == 65535 {
-					endTime := time.Now().Unix()
-					log.Println("统计扫描完成约耗时:", endTime-startTime, "s, 任务开始时间:", lib.InterfaceToStr(startTime), ", 任务结束时间:", lib.InterfaceToStr(endTime))
 				}
 			}
 		}

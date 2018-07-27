@@ -1,8 +1,0 @@
-.idea
-.idea/*
-.DS_Store
-.DS_Store/*
-log/*
-agent/agent
-server/server
-pipeline/main

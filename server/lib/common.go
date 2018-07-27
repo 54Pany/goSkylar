@@ -179,3 +179,16 @@ func SendRebootMessage(agentIp string) error {
 	}
 	return nil
 }
+
+// 当前一轮任务已经扫描完成，发送短信
+func SendSMessage(msg string) error {
+	phones := strings.Split(conf.MESSAGE_NUMBER, ",")
+	for _, v := range phones {
+		err := MobileMessage(v, msg)
+		if err != nil {
+			log.Println("号码：", v, "发送短信失败")
+			continue
+		}
+	}
+	return nil
+}
