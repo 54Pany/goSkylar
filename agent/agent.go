@@ -82,7 +82,7 @@ func MasscanTask(queue string, args ...interface{}) error {
 		items = append(items, fmt.Sprintf("%s|%s|%s", v.IP, v.Port, localIP))
 	}
 
-	_, err = conn.Do("RPUSH", "masscan_result", items)
+	_, err = conn.Do("RPUSH", items...)
 	if err != nil {
 		log.Println("masscan_result push to redis error:" + err.Error())
 	}
@@ -110,13 +110,16 @@ func NmapTask(queue string, args ...interface{}) error {
 	if len(wList) >= 2 {
 		items := []interface{}{"portinfo",}
 		results, _ := core.RunNmap(wList[0], wList[1])
+		if len(results) == 0 {
+			return nil
+		}
 		for _, v := range results {
 			items = append(items, fmt.Sprintf("%s|%d|%s|%s|%s", v.Ip, v.PortId, v.Protocol, v.Service, localIP))
 		}
-		_, err := conn.Do("RPUSH", items)
+		_, err := conn.Do("RPUSH", items...)
 		if err != nil {
 			log.Println("----- portinfo push to redis error----" + err.Error())
-			return  err
+			return err
 		}
 		log.Println("Insert a scan result of nmap to redis:", len(items))
 	}
@@ -130,7 +133,7 @@ func main() {
 
 	settings := goworker.WorkerSettings{
 		URI:            conf.REDIS_URI,
-		Connections: 100,
+		Connections:    100,
 		UseNumber:      true,
 		ExitOnComplete: false,
 		Namespace:      "goskylar:",
