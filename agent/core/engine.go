@@ -2,13 +2,19 @@ package core
 
 import (
 	"log"
-	"goSkylar/lib/masscan"
 	"goSkylar/lib/nmap"
+	"github.com/dean2021/go-masscan"
+	"strings"
 )
 
-func RunMasscan(ipRange string, rate string, port string) ([]masscan.MasscanResult, error) {
+type MasscanResult struct {
+	IP   string `json:"ip"`
+	Port string `json:"port"`
+}
 
-	var masscanResults []masscan.MasscanResult
+func RunMasscan(ipRange string, rate string, port string) ([]MasscanResult, error) {
+
+	var masscanResults []MasscanResult
 
 	m := masscan.New()
 
@@ -21,17 +27,21 @@ func RunMasscan(ipRange string, rate string, port string) ([]masscan.MasscanResu
 	// 扫描速率
 	m.SetRate(rate)
 
-	// 隔离扫描名单
-	m.SetExclude("exclude.txt")
+	args := []string{
+		"--wait", "5",
+		"--exclude-file", "exclude.txt",
+	}
 
-	// 设置等待时间
-	m.SetWaitTime("5")
+	m.SetArgs(args ...)
 
 	// 开始扫描
 	err := m.Run()
 	if err != nil {
-		log.Println("masscan scanner failed:", err)
-		return nil, err
+		// 由于masscan原因，扫描目标在排除ip段内，也会认为成一个错误，所以需要排除掉这种错误
+		if !strings.Contains(err.Error(), "ranges overlapped something in an excludefile range") {
+			log.Println("scanner failed:", err)
+			return nil, err
+		}
 	}
 
 	// 解析扫描结果
@@ -43,13 +53,12 @@ func RunMasscan(ipRange string, rate string, port string) ([]masscan.MasscanResu
 
 	for _, result := range results {
 		for _, v := range result.Ports {
-			masscanResults = append(masscanResults, masscan.MasscanResult{
+			masscanResults = append(masscanResults, MasscanResult{
 				IP:   result.Address.Addr,
 				Port: v.Portid,
 			})
 		}
 	}
-
 	return masscanResults, err
 }
 

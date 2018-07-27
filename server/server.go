@@ -29,7 +29,7 @@ func init() {
 	// 最大任务数量,防止任务堆积,一般设置masscan并发执行的任务数量总和
 	MaxNum = 1000
 	// 常规扫描速率
-	OrdinaryScanRate = "50000"
+	OrdinaryScanRate = "100"
 
 	u, err := url.Parse(conf.REDIS_URI)
 	if err != nil {
@@ -267,8 +267,8 @@ func main() {
 						log.Println("string to int64 Error")
 						continue
 					}
-					if currentTime-resultTime > 150 {
-						// 超过两分钟，主机心跳探测失败
+					if currentTime-resultTime > 30 {
+						// 超过五分钟，主机心跳探测失败
 						log.Println("主机：", agentIp, "停止心跳，请核实")
 						// 短信、邮件告警
 						if _, ok := MessageNum[agentIp]; ok {

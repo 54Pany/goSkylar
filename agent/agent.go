@@ -14,10 +14,12 @@ import (
 	"goSkylar/lib/redispool"
 	"net/url"
 	"github.com/garyburd/redigo/redis"
+	"os"
 )
 
 var (
 	RedisPool *redis.Pool
+	localIP   string
 )
 
 func init() {
@@ -33,13 +35,20 @@ func init() {
 	}
 	redisDB := strings.Trim(u.Path, "/")
 	RedisPool = redispool.NewRedisPool(redispool.Options{
-		RedisAddr:        redisAddr,         //redis链接地址
-		RedisPass:        redisPass,         //redis认证密码
-		RedisDB:          redisDB,           //redis数据库
-		RedisMaxActive:   500,               // 最大的激活连接数，表示同时最多有N个连接
-		RedisMaxIdle:     100,               //最大的空闲连接数，表示即使没有redis连接时依然可以保持N个空闲的连接，而不被清除，随时处于待命状态
-		RedisIdleTimeout: 180 * time.Second, // 最大的空闲连接等待时间，超过此时间后，空闲连接将被关闭
+		RedisAddr:        redisAddr,        // redis链接地址
+		RedisPass:        redisPass,        // redis认证密码
+		RedisDB:          redisDB,          // redis数据库
+		RedisMaxActive:   100,              // 最大的激活连接数，表示同时最多有N个连接
+		RedisMaxIdle:     100,              // 最大的空闲连接数，表示即使没有redis连接时依然可以保持N个空闲的连接，而不被清除，随时处于待命状态
+		RedisIdleTimeout: 20 * time.Second, // 最大的空闲连接等待时间，超过此时间后，空闲连接将被关闭
 	})
+
+	selfIpList, err := net.IntranetIP()
+	if err != nil {
+		log.Println("-------Machine IP获取失败--------")
+	} else {
+		localIP = selfIpList[0]
+	}
 }
 
 func MasscanTask(queue string, args ...interface{}) error {
@@ -55,14 +64,6 @@ func MasscanTask(queue string, args ...interface{}) error {
 	rate := args[1].(string)
 	port := args[2].(string)
 
-	selfIpList, err := net.IntranetIP()
-	selfIp := ""
-	if err != nil {
-		log.Println("-------Machine IP获取失败--------")
-	} else {
-		selfIp = selfIpList[0]
-	}
-
 	results, err := core.RunMasscan(ipRange, rate, port)
 	if err != nil {
 		return err
@@ -72,10 +73,13 @@ func MasscanTask(queue string, args ...interface{}) error {
 		return nil
 	}
 
+	log.Println(args)
 	conn := RedisPool.Get()
 	defer conn.Close()
+
+	// TODO 可以一次push进去
 	for _, v := range results {
-		val := fmt.Sprintf("%s|%s|%s", v.IP, v.Port, selfIp)
+		val := fmt.Sprintf("%s|%s|%s", v.IP, v.Port, localIP)
 		log.Println("Insert a scan result of masscan to redis:" + val)
 		_, err := conn.Do("RPUSH", "masscan_result", val)
 		if err != nil {
@@ -84,6 +88,7 @@ func MasscanTask(queue string, args ...interface{}) error {
 	}
 
 	return err
+
 }
 
 func NmapTask(queue string, args ...interface{}) error {
@@ -125,7 +130,7 @@ func main() {
 
 	signals := make(chan string)
 
-	// 初始化
+	// 初始化  TODO 连接数待优化
 	settings := goworker.WorkerSettings{
 		URI:            conf.REDIS_URI,
 		UseNumber:      true,
@@ -145,37 +150,58 @@ func main() {
 		}
 	}()
 
-	//机器存活心跳
+	// 机器存活心跳
 	go func() {
 		for {
-			log.Println("存活心跳探测：")
 			conn := RedisPool.Get()
-
-			selfIpList, err := net.IntranetIP()
-			selfIp := ""
-			if err != nil {
-				log.Println("-------Machine IP获取失败--------")
-			} else {
-				selfIp = selfIpList[0]
-			}
 			currentTime := time.Now().Unix()
-			_, err = conn.Do("SADD", "agent:ip", selfIp)
+			_, err := conn.Do("SADD", "agent:ip", localIP)
 			if err != nil {
 				log.Println("Agent SADD Error", err.Error())
 				continue
 			}
-			_, err = conn.Do("HSET", "agent:ip:time", selfIp, currentTime)
+			_, err = conn.Do("HSET", "agent:ip:time", localIP, currentTime)
 			if err != nil {
 				log.Println("Agent HSET Error", err.Error())
 				continue
 			}
-			log.Println("本机:【" + selfIp + "】已经向server发出心跳")
-			time.Sleep(time.Minute * 1)
-
+			log.Println("本机:【" + localIP + "】已经向server发出心跳")
+			time.Sleep(time.Second)
 			conn.Close()
 		}
 	}()
 
+	// 获取服务端下发指令,目前仅支持shutdown
+	go func() {
+		for {
+			conn := RedisPool.Get()
+			command, err := conn.Do("HGET", "agent:command", localIP)
+			if err != nil {
+				log.Println("Agent HKEYS Error", err.Error())
+				continue
+			}
+
+			if command == nil {
+				log.Println("无最新指令")
+				conn.Close()
+				time.Sleep(time.Second)
+				continue
+			}
+
+			if string(command.([]byte)) == "shutdown" {
+				_, err := conn.Do("HDEL", "agent:command", localIP)
+				if err != nil {
+					log.Println("HDEL", err.Error())
+				}
+				os.Exit(0)
+			}
+
+			time.Sleep(time.Second)
+			conn.Close()
+		}
+	}()
+
+	// loop处理任务
 	go func() {
 		for {
 			if err := goworker.Work(); err != nil {
