@@ -15,6 +15,7 @@ import (
 
 	"goSkylar/server/data"
 	"goSkylar/server/conf"
+	"goSkylar/lib/logUtil"
 )
 
 var (
@@ -25,6 +26,7 @@ var (
 )
 
 func init() {
+	logUtil.LogSet()
 
 	// 最大任务数量,防止任务堆积,一般设置masscan并发执行的任务数量总和
 	MaxNum = 500
@@ -46,10 +48,9 @@ func init() {
 		RedisAddr:        redisAddr,         //redis链接地址
 		RedisPass:        redisPass,         //redis认证密码
 		RedisDB:          redisDB,           //redis数据库
-		RedisMaxActive:   0,               // 最大的激活连接数，表示同时最多有N个连接
+		RedisMaxActive:   0,                 // 最大的激活连接数，表示同时最多有N个连接
 		RedisMaxIdle:     100,               //最大的空闲连接数，表示即使没有redis连接时依然可以保持N个空闲的连接，而不被清除，随时处于待命状态
 		RedisIdleTimeout: 180 * time.Second, // 最大的空闲连接等待时间，超过此时间后，空闲连接将被关闭
-
 	})
 
 	MessageNum = map[string]int{}
@@ -326,6 +327,17 @@ func main() {
 
 			// 每隔1分钟Server端探测一次
 			time.Sleep(time.Minute * 1)
+		}
+	}()
+
+	// 每天早上更新log文件
+	go func() {
+		for {
+			timeNow := time.Now().Hour() //小时
+			if timeNow == 0 {
+				logUtil.LogSet()
+			}
+			time.Sleep(time.Hour)
 		}
 	}()
 
