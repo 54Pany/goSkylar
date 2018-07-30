@@ -27,9 +27,9 @@ var (
 func init() {
 
 	// 最大任务数量,防止任务堆积,一般设置masscan并发执行的任务数量总和
-	MaxNum = 300
+	MaxNum = 500
 	// 常规扫描速率
-	OrdinaryScanRate = "100"
+	OrdinaryScanRate = "1000"
 
 	u, err := url.Parse(conf.REDIS_URI)
 	if err != nil {
@@ -94,25 +94,25 @@ func main() {
 					break
 				}
 
-				port_end := port + 10
-				if port_end > 65535 {
-					port_end = 65535
+				portEnd := port + 10
+				if portEnd > 65535 {
+					portEnd = 65535
 				}
 
-				port_start := port + 1
+				portStart := port + 1
 
 				tmpSlice := []string{}
 				for _, ipRange := range ipRangeList {
 					if len(tmpSlice) == 10 {
 						tmp := strings.Join(tmpSlice, " ")
-						task <- tmp + "|" + strconv.Itoa(port_start) + "-" + strconv.Itoa(port_end)
+						task <- tmp + "|" + strconv.Itoa(portStart) + "-" + strconv.Itoa(portEnd)
 						tmpSlice = []string{}
 					}
 					tmpSlice = append(tmpSlice, ipRange)
 				}
 				if len(tmpSlice) > 0 {
 					tmp := strings.Join(tmpSlice, " ")
-					task <- tmp + "|" + strconv.Itoa(port_start) + "-" + strconv.Itoa(port_end)
+					task <- tmp + "|" + strconv.Itoa(portStart) + "-" + strconv.Itoa(portEnd)
 				}
 			}
 		}

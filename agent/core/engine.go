@@ -28,7 +28,7 @@ func RunMasscan(ipRange string, rate string, port string) ([]MasscanResult, erro
 	m.SetRate(rate)
 
 	args := []string{
-		"--wait", "5",
+		//"--wait", "5",
 		"--exclude-file", "exclude.txt",
 	}
 
