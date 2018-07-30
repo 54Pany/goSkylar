@@ -10,6 +10,7 @@ func NewRedisPool(options Options) *redis.Pool {
 		MaxIdle:     options.RedisMaxIdle,
 		MaxActive:   options.RedisMaxActive,
 		IdleTimeout: 180 * time.Second,
+		Wait:        true,
 		Dial: func() (redis.Conn, error) {
 			c, err := redis.Dial("tcp", options.RedisAddr)
 			if err != nil {

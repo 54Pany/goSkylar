@@ -56,3 +56,16 @@ Manager password : mx123
 
     116.196.96.123（公）  192.168.0.41（内）
 
+### 重启命令
+
+    kill -9 `ps aux | grep masscan | grep -v grep | awk '{print $2}'` ;
+
+    kill -9 `ps aux | grep nmap | grep -v grep | awk '{print $2}'` ;
+
+    kill -9 `ps aux | grep agent | grep -v grep | awk '{print $2}'` ;
+
+    cd /export/Data/
+
+    > log.log
+
+
