@@ -27,7 +27,8 @@ var (
 func init() {
 
 	// 最大任务数量,防止任务堆积,一般设置masscan并发执行的任务数量总和
-	MaxNum = 500
+	MaxNum = 20
+
 	// 常规扫描速率
 	OrdinaryScanRate = "30000"
 
