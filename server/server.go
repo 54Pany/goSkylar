@@ -15,7 +15,6 @@ import (
 
 	"goSkylar/server/data"
 	"goSkylar/server/conf"
-	"goSkylar/lib/logUtil"
 )
 
 var (
@@ -26,12 +25,11 @@ var (
 )
 
 func init() {
-	logUtil.LogSet()
 
 	// 最大任务数量,防止任务堆积,一般设置masscan并发执行的任务数量总和
 	MaxNum = 500
 	// 常规扫描速率
-	OrdinaryScanRate = "1000"
+	OrdinaryScanRate = "30000"
 
 	u, err := url.Parse(conf.REDIS_URI)
 	if err != nil {
@@ -78,45 +76,53 @@ func main() {
 	// 任务生成
 	go func() {
 		for {
-			startTime := time.Now().Unix()
+			//startTime := time.Now().Unix()
 			ipRangeList := data.FindIpRanges()
 
 			// 一个IP段扫描2个端口
 
-			for port := 0; port <= 65535; port += 10 {
+			//for port := 0; port <= 65535; port += 10 {
+			//
+			//	if port >= 65535 {
+			//		endTime := time.Now().Unix()
+			//		msg := fmt.Sprintf("统计扫描完成约耗时:%d s, 任务开始时间: %s, 任务结束时间:%s", endTime-startTime, lib.InterfaceToStr(startTime), lib.InterfaceToStr(endTime))
+			//		log.Println(msg)
+			//		lib.SendSMessage(msg)
+			//	}
+			//
+			//	if port > 65535 {
+			//		break
+			//	}
+			//
+			//	portEnd := port + 10
+			//	if portEnd > 65535 {
+			//		portEnd = 65535
+			//	}
+			//
+			//	portStart := port + 1
+			//
+			//	tmpSlice := []string{}
+			//	for _, ipRange := range ipRangeList {
+			//		if len(tmpSlice) == 10 {
+			//			tmp := strings.Join(tmpSlice, " ")
+			//			task <- tmp + "|" + strconv.Itoa(portStart) + "-" + strconv.Itoa(portEnd)
+			//			tmpSlice = []string{}
+			//		}
+			//		tmpSlice = append(tmpSlice, ipRange)
+			//	}
+			//	if len(tmpSlice) > 0 {
+			//		tmp := strings.Join(tmpSlice, " ")
+			//		task <- tmp + "|" + strconv.Itoa(portStart) + "-" + strconv.Itoa(portEnd)
+			//	}
+			//}
 
-				if port >= 65535 {
-					endTime := time.Now().Unix()
-					msg := fmt.Sprintf("统计扫描完成约耗时:%d s, 任务开始时间: %s, 任务结束时间:%s", endTime-startTime, lib.InterfaceToStr(startTime), lib.InterfaceToStr(endTime))
-					log.Println(msg)
-					lib.SendSMessage(msg)
-				}
+			//tmpSlice := make([]string, 0)
 
-				if port > 65535 {
-					break
-				}
-
-				portEnd := port + 10
-				if portEnd > 65535 {
-					portEnd = 65535
-				}
-
-				portStart := port + 1
-
-				tmpSlice := []string{}
-				for _, ipRange := range ipRangeList {
-					if len(tmpSlice) == 10 {
-						tmp := strings.Join(tmpSlice, " ")
-						task <- tmp + "|" + strconv.Itoa(portStart) + "-" + strconv.Itoa(portEnd)
-						tmpSlice = []string{}
-					}
-					tmpSlice = append(tmpSlice, ipRange)
-				}
-				if len(tmpSlice) > 0 {
-					tmp := strings.Join(tmpSlice, " ")
-					task <- tmp + "|" + strconv.Itoa(portStart) + "-" + strconv.Itoa(portEnd)
-				}
+			for _, ipRange := range ipRangeList {
+				task <- ipRange
+				//tmpSlice = append(tmpSlice, ipRange)
 			}
+
 		}
 	}()
 
@@ -146,25 +152,27 @@ func main() {
 				taskNum := MaxNum - n
 				for i := 1; i <= taskNum; i++ {
 					info := <-task
-					infoList := strings.Split(info, "|")
+					//infoList := strings.Split(info, "|")
 
 					//开始处理任务
-					ipRange := infoList[0]
-					port := infoList[1]
+					//ipRange := infoList[0]
+					//port := infoList[1]
 
-					log.Println("例行扫描Adding：", ipRange, port)
+					port := "0-65535"
+
+					log.Println("例行扫描Adding：", info, port)
 					err := goworker.Enqueue(&goworker.Job{
 						Queue: "masscan",
 						Payload: goworker.Payload{
 							Class: "masscan",
-							Args:  []interface{}{ipRange, OrdinaryScanRate, port},
+							Args:  []interface{}{info, OrdinaryScanRate, port},
 						},
 					},
 						false)
 					if err != nil {
 						log.Println("例行扫描goworker Enqueue时报错:", err)
 					} else {
-						log.Println("成功添加任务:", ipRange, port)
+						log.Println("成功添加任务:", info, port)
 					}
 				}
 			} else {
@@ -327,17 +335,6 @@ func main() {
 
 			// 每隔1分钟Server端探测一次
 			time.Sleep(time.Minute * 1)
-		}
-	}()
-
-	// 每天早上更新log文件
-	go func() {
-		for {
-			timeNow := time.Now().Hour() //小时
-			if timeNow == 0 {
-				logUtil.LogSet()
-			}
-			time.Sleep(time.Hour)
 		}
 	}()
 

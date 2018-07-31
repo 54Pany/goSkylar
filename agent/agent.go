@@ -15,7 +15,6 @@ import (
 	"net/url"
 	"github.com/garyburd/redigo/redis"
 	"os"
-	"goSkylar/lib/logUtil"
 )
 
 var (
@@ -24,7 +23,6 @@ var (
 )
 
 func init() {
-	logUtil.LogSet()
 
 	u, err := url.Parse(conf.REDIS_URI)
 	if err != nil {
@@ -226,16 +224,5 @@ func main() {
 			continue
 		}
 	}
-
-	// 每天早上更新log文件
-	go func() {
-		for {
-			timeNow := time.Now().Hour() //小时
-			if timeNow == 0 {
-				logUtil.LogSet()
-			}
-			time.Sleep(time.Hour)
-		}
-	}()
 
 }
