@@ -69,8 +69,7 @@ func NmapResultToMongo(msg string) error {
 		return err
 	}
 	if count == 0 {
-		log.Println("--------Data Insert----------")
-		log.Println(result)
+		//log.Println(result)
 		err = portScanResult.Insert(result)
 		return err
 	}

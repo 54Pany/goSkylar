@@ -76,7 +76,8 @@ func main() {
 	// 任务生成
 	go func() {
 		for {
-			//startTime := time.Now().Unix()
+			counter := 0
+			startTime := time.Now().Unix()
 			ipRangeList := data.FindIpRanges()
 
 			// 一个IP段扫描2个端口
@@ -116,17 +117,19 @@ func main() {
 			//	}
 			//}
 
-			//tmpSlice := make([]string, 0)
-
 			for _, ipRange := range ipRangeList {
 				task <- ipRange
-				//tmpSlice = append(tmpSlice, ipRange)
+				counter++
+				log.Println("Add Counter:", counter)
 			}
 
+			// 记录任务添加完成时间
+			endTime := time.Now().Unix()
+			msg := fmt.Sprintf("一轮扫描任务已经添加完成,约耗时:%d s, 开始时间: %s, 结束时间:%s", endTime-startTime, lib.InterfaceToStr(startTime), lib.InterfaceToStr(endTime))
+			log.Println(msg)
+			lib.SendSMessage(msg)
 		}
 	}()
-
-	// 127.0.0.1/24 127.0.0.1/24 127.0.0.1/24 .. | 0-9
 
 	go func() {
 		for {
@@ -176,7 +179,7 @@ func main() {
 					}
 				}
 			} else {
-				log.Println("当前剩余任务数量:", n, ",队列最大任务数量", MaxNum)
+			//	log.Println("当前剩余任务数量:", n, ",队列最大任务数量", MaxNum)
 				time.Sleep(time.Second)
 			}
 			connScan.Close()
@@ -244,8 +247,6 @@ func main() {
 					},
 				},
 					false)
-
-				fmt.Println(taskInfo)
 				if err != nil {
 					log.Println(err)
 				}
@@ -265,12 +266,10 @@ func main() {
 				connPortInfo.Close()
 				continue
 			}
-
 			if reply != nil {
 				taskInfo := string(reply.([]byte))
+				log.Println("save nmap:", string(taskInfo) )
 				err = data.NmapResultToMongo(taskInfo)
-
-				log.Println(taskInfo)
 				if err != nil {
 					log.Println(err)
 				}
@@ -327,7 +326,7 @@ func main() {
 							}
 						}
 						MessageNum[agentIp] = 0
-						log.Println("主机：", agentIp, "当前存活")
+						//log.Println("主机：", agentIp, "当前存活")
 					}
 				}
 			}
