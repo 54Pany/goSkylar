@@ -163,8 +163,6 @@ func main() {
 					//port := infoList[1]
 
 					port := "0-65535"
-
-					log.Println("例行扫描Adding：", info, port)
 					err := goworker.Enqueue(&goworker.Job{
 						Queue: "masscan",
 						Payload: goworker.Payload{
