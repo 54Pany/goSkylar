@@ -150,6 +150,8 @@ func main() {
 
 	// 临时任务，每分钟监听
 	tickerUrgent := time.NewTicker(time.Minute * 1)
+	// 数据源更新，每三小时监听
+	tickerDataSource := time.NewTicker(time.Hour * 3)
 
 	// 添加临时扫描任务
 	go func() {
@@ -302,13 +304,15 @@ func main() {
 	// 数据源更新
 	go func() {
 		for {
-			err := data.FindInitIPS()
-			if err != nil {
-				log.Println("更新数据源出现错误：" + err.Error())
+			select {
+			case <-tickerDataSource.C:
+				err := data.FindInitIPS()
+				if err != nil {
+					log.Println("更新数据源出现错误：" + err.Error())
+				}
 			}
 		}
 		// 每隔3小时更新一次
-		time.Sleep(time.Hour * 3)
 	}()
 
 	select {}
