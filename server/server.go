@@ -81,43 +81,6 @@ func main() {
 			startTime := time.Now().Unix()
 			ipRangeList := data.FindIpRanges()
 
-			// 一个IP段扫描2个端口
-
-			//for port := 0; port <= 65535; port += 10 {
-			//
-			//	if port >= 65535 {
-			//		endTime := time.Now().Unix()
-			//		msg := fmt.Sprintf("统计扫描完成约耗时:%d s, 任务开始时间: %s, 任务结束时间:%s", endTime-startTime, lib.InterfaceToStr(startTime), lib.InterfaceToStr(endTime))
-			//		log.Println(msg)
-			//		lib.SendSMessage(msg)
-			//	}
-			//
-			//	if port > 65535 {
-			//		break
-			//	}
-			//
-			//	portEnd := port + 10
-			//	if portEnd > 65535 {
-			//		portEnd = 65535
-			//	}
-			//
-			//	portStart := port + 1
-			//
-			//	tmpSlice := []string{}
-			//	for _, ipRange := range ipRangeList {
-			//		if len(tmpSlice) == 10 {
-			//			tmp := strings.Join(tmpSlice, " ")
-			//			task <- tmp + "|" + strconv.Itoa(portStart) + "-" + strconv.Itoa(portEnd)
-			//			tmpSlice = []string{}
-			//		}
-			//		tmpSlice = append(tmpSlice, ipRange)
-			//	}
-			//	if len(tmpSlice) > 0 {
-			//		tmp := strings.Join(tmpSlice, " ")
-			//		task <- tmp + "|" + strconv.Itoa(portStart) + "-" + strconv.Itoa(portEnd)
-			//	}
-			//}
-
 			for _, ipRange := range ipRangeList {
 				task <- ipRange
 				counter++
@@ -178,7 +141,7 @@ func main() {
 					}
 				}
 			} else {
-			//	log.Println("当前剩余任务数量:", n, ",队列最大任务数量", MaxNum)
+				//	log.Println("当前剩余任务数量:", n, ",队列最大任务数量", MaxNum)
 				time.Sleep(time.Second)
 			}
 			connScan.Close()
@@ -267,7 +230,7 @@ func main() {
 			}
 			if reply != nil {
 				taskInfo := string(reply.([]byte))
-				log.Println("save nmap:", string(taskInfo) )
+				log.Println("save nmap:", string(taskInfo))
 				err = data.NmapResultToMongo(taskInfo)
 				if err != nil {
 					log.Println(err)
@@ -334,6 +297,18 @@ func main() {
 			// 每隔1分钟Server端探测一次
 			time.Sleep(time.Minute * 1)
 		}
+	}()
+
+	// 数据源更新
+	go func() {
+		for {
+			err := data.FindInitIPS()
+			if err != nil {
+				log.Println("更新数据源出现错误：" + err.Error())
+			}
+		}
+		// 每隔3小时更新一次
+		time.Sleep(time.Hour * 3)
 	}()
 
 	select {}
