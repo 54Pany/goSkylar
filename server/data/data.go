@@ -61,18 +61,13 @@ func NmapResultToMongo(msg string) error {
 	result.Timestamp = timestamp
 	result.Date = lib.TimeToData(timestamp)
 
-	//查询数据库中是否存在记录
-	count, err := portScanResult.Find(bson.M{"ip": result.Ip, "portid": result.PortId, "protocol": result.Protocol,
-		"service": result.Service, "date": result.Date}).Count()
+	_, err := portScanResult.Upsert(bson.M{"ip": result.Ip, "portid": result.PortId, "protocol": result.Protocol,
+		"service": result.Service, "date": result.Date}, result)
 	if err != nil {
-		log.Println("----Pipeline数据库查询报错----" + err.Error())
+		log.Println(err.Error())
 		return err
 	}
-	if count == 0 {
-		//log.Println(result)
-		err = portScanResult.Insert(result)
-		return err
-	}
+
 	return nil
 }
 

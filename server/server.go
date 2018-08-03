@@ -15,6 +15,8 @@ import (
 
 	"goSkylar/server/data"
 	"goSkylar/server/conf"
+	"runtime/debug"
+	"runtime"
 )
 
 var (
@@ -47,13 +49,16 @@ func init() {
 		RedisAddr:        redisAddr,         //redis链接地址
 		RedisPass:        redisPass,         //redis认证密码
 		RedisDB:          redisDB,           //redis数据库
-		RedisMaxActive:   0,                 // 最大的激活连接数，表示同时最多有N个连接
-		RedisMaxIdle:     100,               //最大的空闲连接数，表示即使没有redis连接时依然可以保持N个空闲的连接，而不被清除，随时处于待命状态
+		RedisMaxActive:   300,               // 最大的激活连接数，表示同时最多有N个连接
+		RedisMaxIdle:     300,               //最大的空闲连接数，表示即使没有redis连接时依然可以保持N个空闲的连接，而不被清除，随时处于待命状态
 		RedisIdleTimeout: 180 * time.Second, // 最大的空闲连接等待时间，超过此时间后，空闲连接将被关闭
 	})
 
 	MessageNum = map[string]int{}
 
+
+	debug.SetMaxThreads(200000)
+	runtime.GOMAXPROCS(runtime.NumCPU())
 }
 
 func main() {
@@ -189,58 +194,10 @@ func main() {
 	}()
 
 	// 定时获取masscan扫描结果，给nmap集群进行扫描
-	go func() {
-		for {
-			conn := RedisPool.Get()
-
-			reply, err := conn.Do("LPOP", fmt.Sprintf("masscan_result"))
-			if err != nil {
-				log.Println(err)
-				conn.Close()
-				time.Sleep(time.Second)
-				continue
-			}
-
-			if reply != nil {
-				taskInfo := string(reply.([]byte))
-				err := goworker.Enqueue(&goworker.Job{
-					Queue: "nmap",
-					Payload: goworker.Payload{
-						Class: "nmap",
-						Args:  []interface{}{taskInfo},
-					},
-				},
-					false)
-				if err != nil {
-					log.Println(err)
-				}
-			}
-			conn.Close()
-		}
-	}()
+	go MasscanResultToNmapScanTask()
 
 	// 从nmap扫描结果中获取信息入库
-	go func() {
-		for {
-			connPortInfo := RedisPool.Get()
-
-			reply, err := connPortInfo.Do("LPOP", fmt.Sprintf("portinfo"))
-			if err != nil {
-				log.Println(err)
-				connPortInfo.Close()
-				continue
-			}
-			if reply != nil {
-				taskInfo := string(reply.([]byte))
-				log.Println("save nmap:", string(taskInfo))
-				err = data.NmapResultToMongo(taskInfo)
-				if err != nil {
-					log.Println(err)
-				}
-			}
-			connPortInfo.Close()
-		}
-	}()
+	go NmapResultToDB()
 
 	// agent存活探测
 	go func() {
@@ -317,4 +274,72 @@ func main() {
 
 	select {}
 
+}
+
+// 获取masscan扫描结果添加到nmap扫描任务队列
+func MasscanResultToNmapScanTask() {
+
+	for {
+		// 由于masscan扫描速度过快,造成结果数据堆积,所以需要并发lpop消费
+		for i := 0; i < 5000; i++ {
+			go func() {
+				conn := RedisPool.Get()
+				reply, err := conn.Do("LPOP", fmt.Sprintf("masscan_result"))
+				if err != nil {
+					log.Println(err)
+					conn.Close()
+					time.Sleep(time.Second)
+					return
+				}
+				if reply != nil {
+					taskInfo := string(reply.([]byte))
+					err := goworker.Enqueue(&goworker.Job{
+						Queue: "nmap",
+						Payload: goworker.Payload{
+							Class: "nmap",
+							Args:  []interface{}{taskInfo},
+						},
+					},
+						false)
+					if err != nil {
+						log.Println(err)
+					}
+				}
+				conn.Close()
+			}()
+		}
+
+		//log.Println("MasscanResultToNmapScanTask")
+		time.Sleep(time.Second)
+	}
+}
+
+// 保存nmap扫描结果到mongodb
+func NmapResultToDB() {
+	for {
+		// 由于扫描速度过快,造成结果数据堆积,所以需要并发lpop消费
+		for i := 0; i < 5000; i++ {
+			go func() {
+				connPortInfo := RedisPool.Get()
+				defer connPortInfo.Close()
+				reply, err := connPortInfo.Do("LPOP", fmt.Sprintf("portinfo"))
+				if err != nil {
+					log.Println(err)
+					connPortInfo.Close()
+					return
+				}
+				if reply != nil {
+					taskInfo := string(reply.([]byte))
+				//	fmt.Println(taskInfo)
+					err = data.NmapResultToMongo(taskInfo)
+					if err != nil {
+						log.Println(err)
+					}
+				}
+			}()
+		}
+
+		//log.Println("NmapResultToDB")
+		time.Sleep(time.Second)
+	}
 }
