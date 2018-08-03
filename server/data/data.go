@@ -78,14 +78,14 @@ func NmapResultToMongo(msg string) error {
 
 func FindIpRanges() []string {
 	var allIpRanges []string
-	mExternalScan = mongo.MongoDriver{TableName: "external_scan"}
+	mExternalScan = mongo.MongoDriver{TableName: "external_scan_iprange"}
 	err := mExternalScan.Init()
 	externalcan, err = mExternalScan.NewTable()
 	if err != nil {
 		log.Println("INIT MONGODB ERRPR:" + err.Error())
 	}
 	// 初始化数据库连接
-	externalcan.Find(bson.M{}).Distinct("iprange", &allIpRanges)
+	externalcan.Find(bson.M{}).Distinct("ip_range", &allIpRanges)
 
 	return allIpRanges
 }
