@@ -1,1 +1,1 @@
-101.124.84.152/29
+git remote add origin git@github.com:bipabo1l/goSkylar.git
