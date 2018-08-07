@@ -1,1 +1,1 @@
-git remote add origin git@github.com:bipabo1l/goSkylar.git
+100.0.1.1/24
